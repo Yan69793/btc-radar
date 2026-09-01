@@ -170,8 +170,9 @@ server.listen(0, '127.0.0.1', async () => {
     if (raiz.headers.get('x-content-type-options') !== 'nosniff') falha('raiz: sem X-Content-Type-Options');
     if (raiz.headers.get('x-frame-options') !== 'DENY') falha('raiz: sem X-Frame-Options');
     if (raiz.headers.get('referrer-policy') !== 'no-referrer') falha('raiz: sem Referrer-Policy');
-    if (raiz.headers.get('x-robots-tag') !== 'noindex, nofollow') falha('raiz: sem X-Robots-Tag');
-    else ok(`raiz CSP restritiva + headers de seguranca (${raiz.headers.get('content-type')})`);
+    const robots = raiz.headers.get('x-robots-tag') || '';
+    if (/noindex|nofollow/i.test(robots)) falha(`raiz: X-Robots-Tag bloqueia indexacao (${robots})`);
+    ok(`raiz CSP restritiva + headers de seguranca (${raiz.headers.get('content-type')})`);
 
     const painel = await fetch(`${base}/painel/`);
     const painelCsp = painel.headers.get('content-security-policy') || '';
