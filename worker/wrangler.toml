@@ -1,0 +1,23 @@
+name = "btc-radar"
+main = "src/index.ts"
+compatibility_date = "2025-07-25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "btc-radar"
+# Substituir pelo id real localmente (não versionar o id da conta em repo público)
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "src/db/migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_ID"
+
+[vars]
+CORS_ORIGINS = "https://btc-radar.pages.dev,https://1af6548e.btc-radar.pages.dev,http://localhost:5173"
+WHATSAPP_PHONE_NUMBER_ID = ""
+# Contas que podem escrever na API. Clientes do demo ficam so na leitura.
+ADMIN_EMAILS = "szuchmacheryan@gmail.com"
+
+[triggers]
+crons = ["0 */1 * * *"]

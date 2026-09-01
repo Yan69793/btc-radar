@@ -1,0 +1,69 @@
+{
+  "target": "https://btc-radar.prospects-intel.workers.dev",
+  "frontend": "https://btc-radar.pages.dev",
+  "timestamp": "2026-08-30T15:35:00Z",
+  "http": [
+    {"path": "/api/health", "status": 200, "len": 119, "ms": null, "note": "version 0.5.0 hardcoded"},
+    {"path": "/api/price/latest", "status": 502, "len": 113, "ms": 715, "note": "OKX ticker error: 429 Too Many Requests"},
+    {"path": "/api/price/current", "status": 502, "len": null, "ms": 410, "note": "mesmo 429 OKX"},
+    {"path": "/api/signals", "status": 200, "len": 11582, "ms": 16237, "note": "miss de cache, sleeps seriais"},
+    {"path": "/api/signals", "status": 200, "len": 11582, "ms": 73, "note": "cache hit"},
+    {"path": "/api/news", "status": 200, "len": 10177, "ms": null},
+    {"path": "/api/sentiment/fear-greed", "status": 200, "len": 139, "ms": 961},
+    {"path": "/api/onchain", "status": 200, "len": 314, "ms": 2442},
+    {"path": "/api/derivatives", "status": 200, "len": 334, "ms": 1351},
+    {"path": "/api/briefing", "status": 200, "len": 1471, "ms": null, "note": "ultimo 2026-08-07, 23 dias stale"},
+    {"path": "/api/portfolio", "status": 200, "len": 271, "ms": null, "note": "zeros"},
+    {"path": "/api/trades", "status": 200, "len": 75, "ms": null, "note": "vazio"},
+    {"path": "/api/alerts", "status": 200, "len": 75, "ms": null, "note": "vazio"},
+    {"path": "/api/backtest", "status": 200, "len": 30249, "ms": 899},
+    {"path": "/api/price", "status": 404, "note": "path correto e /latest"},
+    {"path": "/api/sentiment", "status": 404, "note": "path correto e /fear-greed"}
+  ],
+  "ui": {
+    "pageerrors": [],
+    "console": [{"type": "error", "text": "Failed to load resource: the server responded with a status of 502 ()"}],
+    "interactions": [
+      {"type": "chip_sort", "ok": false, "reason": "chip_or_table_missing"},
+      {"type": "th_sort", "ok": false, "reason": "no_table"}
+    ],
+    "counts": {"chips": 0, "ths": 0, "tables": 0},
+    "screenshot": "E:\\Diretorio\\Claude\\ARQUIVO\\Btc-radar\\btc-radar\\diagnosticos\\audit-ui-20260830_123020.png"
+  },
+  "frontend_assets": {
+    "index.html": 2308,
+    "index-DyNASm4C.css": 32759,
+    "index-hPy-kz24.js": 351692,
+    "og-image.jpg": 91354
+  },
+  "d1": {
+    "briefings": {"n": 3, "last_date": "2026-08-07"},
+    "onchain_snapshots": {"n": 0},
+    "prices": {"n": 0},
+    "fear_greed": {"n": 0},
+    "signals": {"n": 0}
+  },
+  "worker_deploys": [
+    "2026-07-26T02:10:05Z",
+    "2026-07-26T02:11:23Z",
+    "2026-07-26T02:19:11Z"
+  ],
+  "secrets": ["CRYPTOPANIC_API_KEY", "OPENROUTER_API_KEY"],
+  "external_checks": {
+    "okx_local": "HTTP:200 BTC 78822.5 (mesmo minuto do 429 do Worker)",
+    "coinpaprika_local": "HTTP:200 BTC 78811.80"
+  },
+  "findings": [
+    {"id": "P1-001", "severity": "P1", "title": "API de preco 502 por 429 da OKX sem fallback", "evidence": "GET /api/price/latest -> 502 \"OKX ticker error: 429 Too Many Requests\" 2026-08-30T15:33:53Z; OKX local 200 no mesmo minuto"},
+    {"id": "P1-002", "severity": "P1", "title": "Cron de coleta ausente: wrangler.toml sem [triggers], D1 vazio, briefing 23 dias stale", "evidence": "wrangler.toml local sem triggers; D1: briefings 3 (ate 07/08), onchain 0, prices 0, fear_greed 0, signals 0"},
+    {"id": "P2-001", "severity": "P2", "title": "CORS * com escrita", "evidence": "index.ts:27, CORS_ORIGINS declarada e nao usada"},
+    {"id": "P2-002", "severity": "P2", "title": "/api/signals 16.2s no miss de cache", "evidence": "medido 16237ms; routes/signals.ts:55-100 sleeps seriais"},
+    {"id": "P2-003", "severity": "P2", "title": "Rotas de escrita sem auth", "evidence": "trades, alerts, portfolio, whatsapp sem autenticacao"},
+    {"id": "P2-004", "severity": "P2", "title": "Caches duplicados e divergentes", "evidence": "btc:price vs btc:price:v3; btc:onchain:v1 vs v2; btc:signals:all orfa"},
+    {"id": "P2-005", "severity": "P2", "title": "Notifier reenvia mesmos sinais toda hora", "evidence": "lib/notifier.ts:128-152, signal_id estavel por dia, sem dedup"},
+    {"id": "P3-001", "severity": "P3", "title": "Bundle frontend 351.7KB sem code splitting"},
+    {"id": "P3-002", "severity": "P3", "title": "Secrets vivos sem uso e dead code"},
+    {"id": "P3-003", "severity": "P3", "title": "tests/ vazio, health version hardcoded, dados hardcoded no cron"},
+    {"id": "P3-004", "severity": "P3", "title": "Backtest O(n^2) sem cache"}
+  ]
+}
