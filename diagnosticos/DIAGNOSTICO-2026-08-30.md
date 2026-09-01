@@ -52,7 +52,7 @@ Script `audit-ui.py` em 1280x800 (2026-08-30 15:30 UTC):
 
 ## 5. Infra
 
-- Worker `btc-radar`, D1 `btc-radar` (ce901481-d8de-4645-8767-143bebf6c1e4), KV 78fd1ef141c9453c889bcd8a0caf07a6.
+- Worker `btc-radar`, D1 `btc-radar` (database_id local, mascarado por repo público), KV local (id mascarado por repo público).
 - `wrangler deployments list` funciona com a auth local. `wrangler d1 execute --remote` falha com code 7403 (account not authorized) — lacuna do token; o plugin Cloudflare bindings respondeu e foi a via usada.
 - D1 remoto (via plugin bindings, 2026-08-30):
   - `briefings`: 3 linhas, última 07/08.
