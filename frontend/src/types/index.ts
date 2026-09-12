@@ -35,6 +35,17 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
+export interface OHLCV {
+  timestamp: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+  interval: string
+  source: string
+}
+
 export interface WhatsAppSubscriber {
   phone: string
   subscribed_at: string
