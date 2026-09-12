@@ -54,6 +54,10 @@ export async function fetchOnChainSnapshot(): Promise<OnChainSnapshot> {
     height = parseInt(await tipRes.value.text());
   }
 
+  // Limitação conhecida (P3-003, 12/09/2026): mempool.space gratuito não expõe
+  // endereços ativos, contagem/volume de tx nem supply circulante. A UI trata
+  // null como "Indisponível". Popular isso exige 2º provedor; fora de escopo
+  // até virar necessidade de produto.
   return {
     timestamp: now,
     hash_rate: hashRate,

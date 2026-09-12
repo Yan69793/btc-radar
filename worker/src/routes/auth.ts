@@ -88,8 +88,8 @@ authRoutes.post("/register", async (c) => {
       timestamp: new Date().toISOString(),
     }, 201);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao cadastrar";
-    const f = fail(500, message);
+    console.error(`[auth] register: ${err instanceof Error ? err.message : err}`);
+    const f = fail(500, "Erro ao cadastrar. Tente novamente.");
     return c.json(f.body, f.status);
   }
 });
@@ -138,8 +138,8 @@ authRoutes.post("/login", async (c) => {
       timestamp: now,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao entrar";
-    const f = fail(500, message);
+    console.error(`[auth] login: ${err instanceof Error ? err.message : err}`);
+    const f = fail(500, "Erro ao entrar. Tente novamente.");
     return c.json(f.body, f.status);
   }
 });

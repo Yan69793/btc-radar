@@ -50,15 +50,26 @@ app.get("/api/health", async (c) => {
   let freshness = {
     last_cron_at: null as string | null,
     last_cron_errors: null as number | null,
+    last_cron_error_detail: null as string[] | null,
     last_price_age_s: null as number | null,
   };
   try {
     const lastRun = await c.env.DB.prepare(
-      "SELECT run_at, error_count FROM cron_executions ORDER BY run_at DESC LIMIT 1"
-    ).first<{ run_at: string; error_count: number }>();
+      "SELECT run_at, error_count, successos_erros FROM cron_executions ORDER BY run_at DESC LIMIT 1"
+    ).first<{ run_at: string; error_count: number; successos_erros: string | null }>();
     if (lastRun) {
       freshness.last_cron_at = lastRun.run_at;
       freshness.last_cron_errors = lastRun.error_count;
+      // Detalhe dos erros no próprio health: sem isso, diagnosticar o cron
+      // exige acesso direto à D1 (P2-001, 12/09/2026). Só strings, truncadas.
+      try {
+        const parsed = JSON.parse(lastRun.successos_erros ?? "{}") as { erros?: unknown };
+        if (Array.isArray(parsed.erros) && parsed.erros.length > 0) {
+          freshness.last_cron_error_detail = parsed.erros
+            .slice(0, 5)
+            .map((e) => String(e).slice(0, 200));
+        }
+      } catch { /* detalhe ilegível, contagem basta */ }
     }
   } catch { /* heartbeat indisponível ainda (tabela recém-criada) */ }
 
