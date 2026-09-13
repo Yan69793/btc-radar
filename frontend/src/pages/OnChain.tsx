@@ -1,5 +1,6 @@
 import { useApi } from '../hooks/useApi'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 import { fmtTimeAgo } from '../lib/formatters'
 
 interface OnChainSnapshot {
@@ -158,26 +159,25 @@ export function OnChain() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36 lg:h-[180px]">
-        <img src="/assets/onchain-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover hero-float" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/90 via-dark-bg/40 to-dark-bg/20" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">On-Chain</h1>
-            <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5 sm:mt-1 hidden sm:block">
-              Metricas da rede Bitcoin
-              {data && <span className="ml-2 text-dark-text-dim/60">atualizado {fmtTimeAgo(data.timestamp)}</span>}
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Rede"
+        title="On-chain"
+        poster="/assets/film-cover.png"
+        meta={
+          <>
+            Metricas da rede Bitcoin
+            {data && <span className="ml-2">atualizado {fmtTimeAgo(data.timestamp)}</span>}
+          </>
+        }
+        actions={
           <button
             onClick={reload}
-            className="px-3 py-1.5 text-sm bg-dark-bg-card border border-dark-bg-border rounded-lg text-dark-text-muted hover:text-dark-text-primary hover:border-dark-text-dim transition-colors shrink-0"
+            className="rounded-md border border-dark-bg-border bg-transparent px-3 py-1.5 text-sm text-dark-text-muted transition-colors hover:border-white/15 hover:text-dark-text-primary"
           >
             Atualizar
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Explicação didática: o que é on-chain para quem nunca viu a rede */}
       <OnChainExplainer />

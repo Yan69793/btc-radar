@@ -126,7 +126,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div>
             <div className="text-sidebar-text-active font-semibold text-sm leading-tight">BTC Radar</div>
-            <div className="text-sidebar-text text-[11px]">v0.4.0</div>
+            <div className="text-sidebar-text text-[11px]">v0.8.0</div>
           </div>
         </div>
       </div>

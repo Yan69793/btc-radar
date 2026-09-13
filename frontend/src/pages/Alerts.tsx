@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 import { fmtDateTime, fmtPrice } from '../lib/formatters'
 import { apiSend } from '../lib/api'
 
@@ -358,25 +359,23 @@ export function Alerts() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36 lg:h-[180px]">
-        <img src="/assets/alerts-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover hero-parallax-drift" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/90 via-dark-bg/40 to-dark-bg/20" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">Alertas</h1>
-            <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5 sm:mt-1 hidden sm:block">Notificacoes de preco e condicoes tecnicas</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button onClick={handleCheck} className="px-3 py-2 bg-dark-bg-card border border-dark-bg-border rounded-lg text-dark-text-muted text-sm hover:text-dark-text-primary hover:border-dark-text-dim transition-colors">
-              Verificar Agora
+      <PageHeader
+        eyebrow="Operacao"
+        title="Alertas"
+        poster="/assets/film-acao.png"
+        clip="/assets/film-acao.mp4"
+        meta="Notificacoes de preco e condicoes tecnicas"
+        actions={
+          <>
+            <button onClick={handleCheck} className="rounded-md border border-dark-bg-border bg-transparent px-3 py-2 text-sm text-dark-text-muted transition-colors hover:border-white/15 hover:text-dark-text-primary">
+              Verificar agora
             </button>
-            <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
-              Novo Alerta
+            <button onClick={() => setShowForm(true)} className="rounded-md bg-accent-blue px-3.5 py-2 text-sm font-medium text-dark-bg transition-colors hover:brightness-110">
+              Novo alerta
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Status bar */}
       <div className="flex items-center gap-4">

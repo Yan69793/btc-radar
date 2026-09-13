@@ -2,13 +2,15 @@ import type { BacktestScoreResult, ScoreClassification, ScoreDistribution } from
 
 // ─── Constantes visuais ───
 
+// Escala sequencial de qualidade: frio (ruim) para quente (bom), dentro da
+// paleta do sistema. Sem arco-íris, que era o tell de template.
 const CLASSIFICATION_COLORS: Record<ScoreClassification, { bar: string; text: string; bg: string }> = {
-  Pessimo:      { bar: '#ef4444', text: 'text-red-400',       bg: 'bg-red-500/10' },
-  'Muito Ruim': { bar: '#f97316', text: 'text-orange-400',    bg: 'bg-orange-500/10' },
-  Ruim:         { bar: '#eab308', text: 'text-yellow-400',    bg: 'bg-yellow-500/10' },
-  Bom:          { bar: '#22c55e', text: 'text-green-400',     bg: 'bg-green-500/10' },
-  'Muito Bom':  { bar: '#10b981', text: 'text-emerald-400',   bg: 'bg-emerald-500/10' },
-  Excelente:    { bar: '#06b6d4', text: 'text-cyan-400',      bg: 'bg-cyan-500/10' },
+  Pessimo:      { bar: '#f85149', text: 'text-accent-red',          bg: 'bg-accent-red/10' },
+  'Muito Ruim': { bar: '#d29922', text: 'text-accent-orange',       bg: 'bg-accent-orange/10' },
+  Ruim:         { bar: '#8a8f98', text: 'text-dark-text-muted',     bg: 'bg-white/[0.04]' },
+  Bom:          { bar: '#3fb950', text: 'text-accent-green',        bg: 'bg-accent-green/10' },
+  'Muito Bom':  { bar: '#2ea043', text: 'text-accent-green-soft',   bg: 'bg-accent-green/10' },
+  Excelente:    { bar: '#e8b33a', text: 'text-accent-yellow',       bg: 'bg-accent-yellow/10' },
 }
 
 function fmtPct(v: number): string {
@@ -109,7 +111,7 @@ export function ScoreGauge({ scoreData, distribution, compact = false }: ScoreGa
       <div className="space-y-2">
         {/* Gradient bar */}
         <div className="relative h-4 rounded-full overflow-hidden"
-          style={{ background: 'linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #10b981, #06b6d4)' }}
+          style={{ background: 'linear-gradient(to right, #f85149, #d29922, #8a8f98, #3fb950, #2ea043, #e8b33a)' }}
         >
           {/* Position marker (triangle) */}
           <div
@@ -190,7 +192,7 @@ export function ScoreGauge({ scoreData, distribution, compact = false }: ScoreGa
                   className="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${data.percentile}%`,
-                    backgroundColor: data.percentile >= 75 ? '#22c55e' : data.percentile >= 50 ? '#eab308' : data.percentile >= 25 ? '#f97316' : '#ef4444',
+                    backgroundColor: data.percentile >= 75 ? '#3fb950' : data.percentile >= 50 ? '#8a8f98' : data.percentile >= 25 ? '#d29922' : '#f85149',
                   }}
                 />
               </div>

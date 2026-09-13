@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApi } from '../hooks/useApi'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 import { fmtPrice, fmtTimeAgo } from '../lib/formatters'
 
 interface SignalDocument {
@@ -46,34 +47,30 @@ const TIMEFRAME_DESC: Record<string, string> = {
   long: 'Investimento de 6 meses ou mais',
 }
 
-const VERDICT_STYLE: Record<string, { bg: string; text: string; border: string; badge: string; glow: string }> = {
+const VERDICT_STYLE: Record<string, { bg: string; text: string; border: string; badge: string }> = {
   COMPRAR: {
-    bg: 'bg-[#0a2818]',
+    bg: 'bg-accent-green/[0.06]',
     text: 'text-accent-green',
-    border: 'border-accent-green/20 hover:border-accent-green/40',
-    badge: 'bg-accent-green/15 text-accent-green border-accent-green/30',
-    glow: 'shadow-glow-green',
+    border: 'border-accent-green/20 hover:border-accent-green/35',
+    badge: 'bg-accent-green/12 text-accent-green border-accent-green/25',
   },
   AGUARDAR: {
     bg: 'bg-dark-bg-card',
     text: 'text-dark-text-muted',
-    border: 'border-dark-bg-border hover:border-dark-text-dim',
+    border: 'border-dark-bg-border hover:border-white/15',
     badge: 'bg-dark-bg-hover text-dark-text-muted border-dark-bg-border',
-    glow: '',
   },
   VENDER: {
-    bg: 'bg-[#280a0a]',
+    bg: 'bg-accent-red/[0.06]',
     text: 'text-accent-red',
-    border: 'border-accent-red/20 hover:border-accent-red/40',
-    badge: 'bg-accent-red/15 text-accent-red border-accent-red/30',
-    glow: 'shadow-glow-red',
+    border: 'border-accent-red/20 hover:border-accent-red/35',
+    badge: 'bg-accent-red/12 text-accent-red border-accent-red/25',
   },
   REDUZIR: {
-    bg: 'bg-[#281a0a]',
+    bg: 'bg-accent-yellow/[0.05]',
     text: 'text-accent-yellow',
-    border: 'border-accent-yellow/20 hover:border-accent-yellow/40',
-    badge: 'bg-accent-yellow/15 text-accent-yellow border-accent-yellow/30',
-    glow: '',
+    border: 'border-accent-yellow/20 hover:border-accent-yellow/35',
+    badge: 'bg-accent-yellow/12 text-accent-yellow border-accent-yellow/25',
   },
 }
 
@@ -130,10 +127,10 @@ function SignalCard({ signal }: { signal: SignalDocument }) {
 
   return (
     <div
-      className={`card p-0 overflow-hidden transition-all duration-200 ${style.border} ${style.glow} ${
+      className={`card p-0 overflow-hidden transition-colors duration-150 ${style.border} ${
         isActionable ? 'ring-1 ring-inset' : ''
       }`}
-      style={isActionable ? { borderColor: signal.verdict === 'COMPRAR' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' } : {}}
+      style={isActionable ? { borderColor: signal.verdict === 'COMPRAR' ? 'rgba(63,185,80,0.3)' : 'rgba(248,81,73,0.3)' } : {}}
     >
       {/* Top strip: Strategy + Verdict */}
       <div className={`px-4 py-3 flex items-center justify-between ${style.bg}`}
@@ -287,22 +284,20 @@ export function Signals() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36 lg:h-[180px]">
-        <img src="/assets/signals-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover hero-pulse-glow" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/90 via-dark-bg/40 to-dark-bg/20" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">Sinais</h1>
-          <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5 sm:mt-1 hidden sm:block">
+      <PageHeader
+        eyebrow="Analise"
+        title="Sinais"
+        poster="/assets/film-sinais.png"
+        clip="/assets/film-sinais.mp4"
+        meta={
+          <>
             6 estrategias · 3 horizontes · {counts.total} sinais
             {data?.generated_at && (
-              <span className="ml-2 text-dark-text-dim/60">
-                atualizado {fmtTimeAgo(data.generated_at)}
-              </span>
+              <span className="ml-2">atualizado {fmtTimeAgo(data.generated_at)}</span>
             )}
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Header controls */}
       <div className="flex flex-wrap items-center gap-2">

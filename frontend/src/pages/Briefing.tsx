@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 import { fmtDateTime } from '../lib/formatters'
 import { apiSend } from '../lib/api'
 
@@ -133,31 +134,30 @@ export function Briefing() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto animate-fade-in">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36 lg:h-[180px]">
-        <img src="/assets/briefing-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover hero-parallax-drift" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/90 via-dark-bg/40 to-dark-bg/20" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">Briefing Diario</h1>
-            <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5 sm:mt-1 hidden sm:block">
-              Analise diaria de Bitcoin gerada por IA (OpenRouter DeepSeek V4 Pro)
-              {briefings.length > 0 && (
-                <span className="ml-2 text-dark-text-dim/60">
-                  {briefings.length} edicao{briefings.length !== 1 ? 'es' : ''}
-                </span>
-              )}
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Analise"
+        title="Briefing diario"
+        poster="/assets/film-pulso.png"
+        meta={
+          <>
+            Gerado por IA a partir dos dados coletados
+            {briefings.length > 0 && (
+              <span className="ml-2">
+                {briefings.length} edicao{briefings.length !== 1 ? 'es' : ''}
+              </span>
+            )}
+          </>
+        }
+        actions={
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+            className="rounded-md bg-accent-blue px-3.5 py-2 text-sm font-medium text-dark-bg transition-colors hover:brightness-110 disabled:opacity-50"
           >
-            {generating ? 'Gerando...' : 'Gerar Agora'}
+            {generating ? 'Gerando...' : 'Gerar agora'}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Status messages */}
       {generateError && (

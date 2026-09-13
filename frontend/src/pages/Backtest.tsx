@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
+import { PageHeader } from '../components/PageHeader'
 import { ScoreGauge } from '../components/ScoreGauge'
 import { fmtPct, fmtDateTime } from '../lib/formatters'
 import type { ApiResponse, BacktestScoreResult, ScoreDistribution } from '../types'
@@ -203,18 +204,17 @@ export function Backtest() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
-      {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36 lg:h-[180px]">
-        <img src="/assets/backtest-hero.png" alt="" className="absolute inset-0 w-full h-full object-cover hero-float" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/90 via-dark-bg/40 to-dark-bg/20" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">Backtest</h1>
-          <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5 sm:mt-1 hidden sm:block">
-            Resultados de backtesting com motor proprio (pandas/numpy)
-            {runs.length > 0 && <span className="ml-2 text-dark-text-dim/60">{runs.length} run{runs.length !== 1 ? 's' : ''}</span>}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Analise"
+        title="Backtest"
+        poster="/assets/film-pulso.png"
+        meta={
+          <>
+            Motor proprio (pandas/numpy)
+            {runs.length > 0 && <span className="ml-2">{runs.length} run{runs.length !== 1 ? 's' : ''}</span>}
+          </>
+        }
+      />
 
       {/* Filtros */}
       {availableStrategies.length > 0 && (

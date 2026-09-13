@@ -17,8 +17,8 @@ import type { OHLCV } from '../types'
 // exceção no CSP. Zero dependência externa: funciona offline de terceiros.
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-const UP = '#22c55e'
-const DOWN = '#ef4444'
+const UP = '#3fb950'
+const DOWN = '#f85149'
 
 interface Point {
   t: string

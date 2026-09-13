@@ -4,32 +4,14 @@ interface Props {
   data: FearGreedData
 }
 
-const colorMap: Record<string, { bar: string; text: string; glow: string }> = {
-  'Extreme Fear': {
-    bar: '#ef4444',
-    text: 'text-red-400',
-    glow: 'shadow-[0_0_16px_rgba(239,68,68,0.2)]',
-  },
-  'Fear': {
-    bar: '#f97316',
-    text: 'text-orange-400',
-    glow: 'shadow-[0_0_16px_rgba(249,115,22,0.2)]',
-  },
-  'Neutral': {
-    bar: '#eab308',
-    text: 'text-yellow-400',
-    glow: 'shadow-[0_0_16px_rgba(234,179,8,0.2)]',
-  },
-  'Greed': {
-    bar: '#22c55e',
-    text: 'text-green-400',
-    glow: 'shadow-[0_0_16px_rgba(34,197,94,0.2)]',
-  },
-  'Extreme Greed': {
-    bar: '#10b981',
-    text: 'text-emerald-400',
-    glow: 'shadow-[0_0_16px_rgba(16,185,129,0.2)]',
-  },
+// Semântico por faixa de sentimento. A cor comunica o estado; sem brilho, que
+// em dark vira ruído. Os tons são os do mercado (vermelho medo, verde ganância).
+const colorMap: Record<string, { bar: string; text: string }> = {
+  'Extreme Fear': { bar: '#f85149', text: 'text-accent-red' },
+  'Fear': { bar: '#d29922', text: 'text-accent-orange' },
+  'Neutral': { bar: '#8a8f98', text: 'text-dark-text-muted' },
+  'Greed': { bar: '#3fb950', text: 'text-accent-green' },
+  'Extreme Greed': { bar: '#2ea043', text: 'text-accent-green-soft' },
 }
 
 const emojiMap: Record<string, string> = {
@@ -70,7 +52,7 @@ export function FearGreedMeter({ data }: Props) {
           <div
             className="absolute inset-0 rounded-full opacity-20"
             style={{
-              background: 'linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 50%, #22c55e 75%, #10b981 100%)',
+              background: 'linear-gradient(90deg, #f85149 0%, #d29922 50%, #3fb950 100%)',
             }}
           />
           {/* Active bar */}

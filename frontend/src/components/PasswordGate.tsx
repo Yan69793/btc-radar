@@ -59,27 +59,11 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-dark-bg p-4">
-      {/* ─── Fundo: orbes de luz + grade técnica ─── */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent-blue/20 blur-[120px]" />
-        <div className="absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-accent-green/10 blur-[130px]" />
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(59,130,246,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.07) 1px, transparent 1px)',
-            backgroundSize: '44px 44px',
-            maskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%)',
-          }}
-        />
-      </div>
-
       {/* ─── Card de acesso ─── */}
       <div className="relative w-full max-w-md">
-        <div className="card gradient-border-top p-8 sm:p-10 space-y-6 shadow-card-hover">
+        <div className="card p-8 sm:p-10 space-y-6">
           <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent-blue/40 bg-dark-bg-elevated shadow-[0_0_30px_rgba(59,130,246,0.25)]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent-blue/40 bg-dark-bg-elevated">
               <span className="text-2xl font-bold text-accent-blue">₿</span>
             </div>
             <div>
@@ -171,7 +155,7 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
             <button
               type="submit"
               disabled={checking || !canSubmit}
-              className="w-full rounded-lg bg-accent-blue px-4 py-3 text-sm font-semibold text-white transition-all hover:bg-blue-500 hover:shadow-[0_0_24px_rgba(59,130,246,0.4)] focus:outline-none focus:ring-2 focus:ring-accent-blue/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-md bg-accent-blue px-4 py-3 text-sm font-medium text-dark-bg transition-colors hover:brightness-110 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
               {checking ? 'Verificando...' : mode === 'login' ? 'Entrar no painel' : 'Criar conta e entrar'}
             </button>

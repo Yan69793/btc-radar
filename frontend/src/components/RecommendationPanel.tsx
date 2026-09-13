@@ -36,38 +36,34 @@ const TIMEFRAME_CONFIG: Record<string, { label: string; description: string }> =
   long: { label: 'Longo Prazo', description: '6 meses ou mais' },
 }
 
-const CONSENSUS_STYLE: Record<string, { bg: string; border: string; text: string; glow: string; label: string; dot: string }> = {
+const CONSENSUS_STYLE: Record<string, { bg: string; border: string; text: string; label: string; dot: string }> = {
   COMPRAR: {
-    bg: 'bg-[#0a2818]',
-    border: 'border-accent-green/40',
+    bg: 'bg-accent-green/[0.07]',
+    border: 'border-accent-green/30',
     text: 'text-accent-green',
-    glow: 'shadow-[0_0_24px_rgba(34,197,94,0.15)]',
     label: 'COMPRAR',
-    dot: 'bg-accent-green shadow-[0_0_10px_rgba(34,197,94,0.5)]',
+    dot: 'bg-accent-green',
   },
   VENDER: {
-    bg: 'bg-[#280a0a]',
-    border: 'border-accent-red/40',
+    bg: 'bg-accent-red/[0.07]',
+    border: 'border-accent-red/30',
     text: 'text-accent-red',
-    glow: 'shadow-[0_0_24px_rgba(239,68,68,0.15)]',
     label: 'VENDER',
-    dot: 'bg-accent-red shadow-[0_0_10px_rgba(239,68,68,0.5)]',
+    dot: 'bg-accent-red',
   },
   AGUARDAR: {
     bg: 'bg-dark-bg-card',
     border: 'border-dark-bg-border',
     text: 'text-dark-text-muted',
-    glow: '',
     label: 'AGUARDAR',
     dot: 'bg-dark-text-dim',
   },
   MISTO: {
-    bg: 'bg-[#1a1508]',
-    border: 'border-accent-yellow/30',
+    bg: 'bg-accent-yellow/[0.05]',
+    border: 'border-accent-yellow/25',
     text: 'text-accent-yellow',
-    glow: 'shadow-[0_0_24px_rgba(234,179,8,0.1)]',
     label: 'DIVERGENTE',
-    dot: 'bg-accent-yellow shadow-[0_0_6px_rgba(234,179,8,0.3)]',
+    dot: 'bg-accent-yellow',
   },
 }
 
@@ -124,7 +120,7 @@ function TimeframeCard({ tf }: { tf: TimeframeVerdict }) {
   const style = CONSENSUS_STYLE[tf.consensus]!
 
   return (
-    <div className={`card overflow-hidden transition-all duration-300 ${style.border} ${style.glow} hover:border-opacity-60`}>
+    <div className={`card overflow-hidden transition-colors duration-150 ${style.border} hover:border-opacity-60`}>
       {/* Top strip */}
       <div className={`px-4 py-3 ${style.bg} border-b ${style.border}`}>
         <div className="flex items-center justify-between">

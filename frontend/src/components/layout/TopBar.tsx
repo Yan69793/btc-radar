@@ -11,8 +11,7 @@ export function TopBar({ onMenuClick }: Props) {
 
   return (
     <header
-      className="h-12 border-b border-dark-bg-border flex items-center px-3 sm:px-4 lg:px-6 bg-dark-bg shrink-0 gap-2 sm:gap-4 lg:gap-6"
-      style={{ background: 'linear-gradient(180deg, rgba(19, 27, 46, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%)' }}
+      className="flex h-12 shrink-0 items-center gap-2 border-b border-dark-bg-border bg-dark-bg px-3 sm:gap-4 sm:px-4 lg:gap-6 lg:px-6"
     >
       {/* Hamburger (mobile only) */}
       <button
@@ -38,21 +37,18 @@ export function TopBar({ onMenuClick }: Props) {
       ) : (
         <>
           {/* Pair indicator */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <div className="relative hidden sm:block">
-              <div className="w-2 h-2 rounded-full bg-accent-green" />
-              <div className="absolute inset-0 w-2 h-2 rounded-full bg-accent-green animate-ping opacity-30" />
-            </div>
-            <span className="text-dark-text-secondary font-medium text-xs sm:text-sm tracking-wide">BTC/USD</span>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            <div className="hidden h-1.5 w-1.5 rounded-full bg-accent-green sm:block" />
+            <span className="text-xs font-medium tracking-wide text-dark-text-secondary sm:text-sm">BTC/USD</span>
           </div>
 
           {/* Price */}
-          <span className="font-mono text-sm font-semibold text-dark-text-primary tabular-nums shrink-0">
+          <span className="metric shrink-0 text-sm font-semibold text-dark-text-primary">
             {fmtPrice(price.price)}
           </span>
 
           {/* 24h change */}
-          <span className={`text-xs sm:text-sm font-semibold tabular-nums shrink-0 ${pctColor(price.change_24h)}`}>
+          <span className={`metric shrink-0 text-xs font-medium sm:text-sm ${pctColor(price.change_24h)}`}>
             {fmtPct(price.change_24h)}
           </span>
 
