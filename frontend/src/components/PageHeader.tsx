@@ -6,6 +6,7 @@
 // superfície Monitor, densidade e leitura ganham de enfeite.
 import type { ReactNode } from 'react'
 import { AutoplayVideo } from './AutoplayVideo'
+import { asset } from '../lib/assets'
 
 interface PageHeaderProps {
   eyebrow: string
@@ -21,14 +22,14 @@ export function PageHeader({ eyebrow, title, meta, actions, poster, clip }: Page
     <header className="relative overflow-hidden rounded-lg border border-dark-bg-border">
       {clip ? (
         <AutoplayVideo
-          src={clip}
-          poster={poster}
+          src={asset(clip)}
+          poster={poster ? asset(poster) : undefined}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
         poster && (
           <img
-            src={poster}
+            src={asset(poster)}
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover"

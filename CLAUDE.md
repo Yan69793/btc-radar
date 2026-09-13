@@ -12,8 +12,15 @@ Dashboard Bitcoin (painel + API). Produção: Pages `https://btc-radar.pages.dev
 - Testes worker: `cd worker && npm test` (vitest, 38 testes).
 - Typecheck worker: `cd worker && npx tsc --noEmit`.
 - Deploy worker: `cd worker && npx wrangler deploy` (triggers de cron vão junto).
-- Deploy Pages: `cd frontend && npx wrangler pages deploy pages-dist --project-name btc-radar` (ou `dist`, ver aviso acima).
+- Deploy Pages: `pwsh ./frontend/scripts/deploy-pages.ps1` (faz build, sincroniza `pages-dist` e publica). Nunca `wrangler pages deploy dist`: isso joga o build cru na raiz e derruba a landing.
 - D1 remoto via token local falha (7403, sem escopo). Leitura remota: `/api/health` (freshness) ou OAuth do wrangler.
+
+## Pitfalls do Pages (custaram caro, não repetir)
+- O painel roda em `/painel/` (base do Vite). Asset em `public/assets` vai para `/painel/assets/`, então caminho absoluto `/assets/...` no código do painel devolve o fallback do Pages com status 200 e **HTML no lugar da imagem** (ícone quebrado no browser). Use `asset()` de `src/lib/assets.ts`, que prefixa `BASE_URL`.
+- O alvo do rewrite em `_redirects` não pode terminar em `.html`: o Pages responde 308 nesse caminho, o rewrite não entrega corpo e o pedido cai no fallback da raiz. Por isso o SPA é servido por `/painel/shell` (sem extensão) com o MIME declarado no `_headers`.
+- `_redirects` vence asset estático. Catch-all `/painel/*` engole `/painel/assets/*` e quebra o painel inteiro. As rotas do SPA são listadas uma a uma.
+- `_headers` casa com o caminho **pedido**, não com o arquivo servido. Sem `Content-Type` declarado nas rotas, o browser baixa o HTML em vez de renderizar.
+- Toda rota nova do painel precisa de entrada nos dois arquivos: `_redirects` (rewrite) e `_headers` (MIME).
 
 ## Pendências abertas
 Estado vivo em `diagnosticos/DIAGNOSTICO-2026-09-12.md` (seção 7 + 9). Posição em 12/09/2026 (sessão de resolução):
