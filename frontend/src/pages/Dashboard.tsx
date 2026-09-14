@@ -38,9 +38,6 @@ export function Dashboard() {
         }
       />
 
-      {/* Recomendacao de trading por horizonte */}
-      <RecommendationPanel />
-
       {/* Preco e metricas de mercado */}
       <section className="space-y-6">
         {priceLoading ? <SkeletonCard /> : price ? <PriceHeader data={price} /> : null}
@@ -50,6 +47,9 @@ export function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* A leitura parte do dado observado e chega à interpretação. */}
+      <RecommendationPanel />
 
       {/* Grid: grafico + sentimento + noticias */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">

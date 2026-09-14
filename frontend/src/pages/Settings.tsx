@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
 import type { ApiResponse, WhatsAppSubscriber } from '../types'
 import { apiSend } from '../lib/api'
+import { PageHeader } from '../components/PageHeader'
 
 export function Settings() {
   // ─── WhatsApp subscription state ───
@@ -123,17 +124,14 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-xl h-28 sm:h-36">
-        <div className="absolute inset-0 bg-gradient-to-br from-dark-bg via-dark-bg-hover to-dark-bg" />
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 lg:p-5">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-dark-text-primary">Configuracoes</h1>
-          <p className="text-dark-text-dim text-xs sm:text-sm mt-0.5">
-            Gerencie suas preferencias de notificacao e canais
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+      <PageHeader
+        eyebrow="Conta"
+        title="Configurações"
+        poster="/assets/film-acao.png"
+        meta="Preferências de notificação e canais"
+        context="SETTINGS"
+      />
 
       {/* Status messages */}
       {error && (

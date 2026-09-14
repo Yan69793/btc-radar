@@ -15,9 +15,10 @@ interface PageHeaderProps {
   actions?: ReactNode
   poster?: string
   clip?: string
+  context?: string
 }
 
-export function PageHeader({ eyebrow, title, meta, actions, poster, clip }: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, meta, actions, poster, clip, context }: PageHeaderProps) {
   return (
     <header className="relative overflow-hidden rounded-lg border border-dark-bg-border">
       {clip ? (
@@ -39,9 +40,12 @@ export function PageHeader({ eyebrow, title, meta, actions, poster, clip }: Page
       )}
       {poster && <div className="absolute inset-0 bg-dark-bg/88" aria-hidden="true" />}
 
-      <div className="relative flex flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
+      <div className="relative flex min-h-[96px] flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <div className="min-w-0">
-          <div className="eyebrow">{eyebrow}</div>
+          <div className="flex items-center gap-2">
+            <div className="eyebrow">{eyebrow}</div>
+            {context && <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-dark-text-dim">{context}</span>}
+          </div>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-xl font-medium tracking-tight text-dark-text-primary sm:text-[1.6rem]">
               {title}

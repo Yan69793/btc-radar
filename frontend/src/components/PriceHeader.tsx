@@ -15,14 +15,8 @@ export function PriceHeader({ data }: Props) {
         {/* Left: Identity + Price */}
         <div className="shrink-0">
           <div className="flex items-center gap-3 mb-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #f7931a 0%, #e87d0e 100%)',
-                boxShadow: '0 4px 16px rgba(247, 147, 26, 0.3)',
-              }}
-            >
-              <span className="text-black font-bold text-lg">B</span>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent-yellow/40 bg-accent-yellow/10">
+              <span className="font-mono text-lg font-semibold text-accent-yellow">₿</span>
             </div>
             <div>
               <h2 className="text-dark-text-primary font-semibold text-lg leading-tight">Bitcoin</h2>
@@ -75,7 +69,7 @@ function StatItem({
 }) {
   return (
     <div>
-      <div className="text-dark-text-dim text-[11px] tracking-wide uppercase mb-0.5">{label}</div>
+      <div className="mb-0.5 text-[11px] uppercase tracking-[0.12em] text-dark-text-dim">{label}</div>
       <div
         className={`text-sm font-mono font-medium tabular-nums ${
           highlight === 'positive'

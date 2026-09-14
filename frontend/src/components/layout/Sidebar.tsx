@@ -90,7 +90,7 @@ const navItems = [
   },
   {
     to: '/settings',
-    label: 'Configuracoes',
+    label: 'Configurações',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -107,22 +107,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 relative overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, #f7931a 0%, #e87d0e 100%)',
-              boxShadow: '0 0 20px rgba(247, 147, 26, 0.35), 0 0 40px rgba(247, 147, 26, 0.1)',
-            }}
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-accent-yellow/45 bg-accent-yellow/10"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="relative z-10">
-              <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="#0d1525" stroke="#0d1525" strokeWidth="0.5" />
-              <text x="12" y="16" textAnchor="middle" fill="#f7931a" fontSize="11" fontWeight="800" fontFamily="Inter, sans-serif">B</text>
+              <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="none" stroke="#e8b33a" strokeWidth="1" />
+              <text x="12" y="16" textAnchor="middle" fill="#e8b33a" fontSize="11" fontWeight="600" fontFamily="JetBrains Mono, monospace">₿</text>
             </svg>
-            <div
-              className="absolute inset-0 rounded-xl opacity-30"
-              style={{
-                background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4) 0%, transparent 60%)',
-              }}
-            />
+
           </div>
           <div>
             <div className="text-sidebar-text-active font-semibold text-sm leading-tight">BTC Radar</div>
