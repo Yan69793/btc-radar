@@ -106,6 +106,34 @@ export async function fetchTicker(): Promise<PriceSnapshot> {
   };
 }
 
+// ─── Preço em BRL (referência global para prêmio BTC/BRL) ───
+
+export interface BRLPrice {
+  price: number;
+  change_7d: number;
+  last_updated: string;
+}
+
+export async function fetchBRLPrice(): Promise<BRLPrice> {
+  const res = await fetch(`${BASE_URL}/tickers/${BTC_ID}?quotes=BRL`);
+  if (!res.ok) {
+    throw new Error(`CoinPaprika BRL error: ${res.status}`);
+  }
+  const ticker = (await res.json()) as {
+    quotes?: { BRL?: { price: number; percent_change_7d: number } };
+    last_updated?: string;
+  };
+  const brl = ticker.quotes?.BRL;
+  if (!brl || !Number.isFinite(brl.price)) {
+    throw new Error("CoinPaprika BRL quote ausente");
+  }
+  return {
+    price: brl.price,
+    change_7d: brl.percent_change_7d ?? 0,
+    last_updated: ticker.last_updated ?? new Date().toISOString(),
+  };
+}
+
 export async function fetchOHLCV(
   interval: "1h" | "4h" | "1d" | "1w" = "1d",
   limit: number = 30

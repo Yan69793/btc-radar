@@ -20,6 +20,7 @@ import { portfolioRoutes } from "./routes/portfolio";
 import { briefingRoutes } from "./routes/briefing";
 import { whatsappRoutes } from "./routes/whatsapp";
 import { authRoutes } from "./routes/auth";
+import { marketRoutes } from "./routes/market";
 import { handleScheduled } from "./cron";
 import { writeGuard } from "./lib/write-guard";
 
@@ -107,6 +108,7 @@ app.route("/api/portfolio", portfolioRoutes);
 app.route("/api/briefing", briefingRoutes);
 app.route("/api/whatsapp", whatsappRoutes);
 app.route("/api/auth", authRoutes);
+app.route("/api/market", marketRoutes);
 
 // Cron handler — coleta batch programada
 export default {

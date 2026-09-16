@@ -1,5 +1,5 @@
 // BTC Radar — Rotas de derivativos
-// GET /api/derivatives — funding rate, open interest, long/short ratio (OKX)
+// GET /api/derivatives — funding rate, open interest, long/short ratio e liquidações (OKX)
 
 import { Hono } from "hono";
 import type { Env } from "../types";
@@ -14,6 +14,10 @@ interface DerivativesSnapshot {
   open_interest_btc: number | null;
   oi_change_24h_pct: number | null;
   long_short_ratio: number | null;
+  liquidation_recent_count: number | null;
+  liquidation_recent_long_count: number | null;
+  liquidation_recent_short_count: number | null;
+  liquidation_recent_oldest_ts: string | null;
   timestamp: string;
   source: string;
 }
@@ -40,18 +44,23 @@ derivativesRoutes.get("/", async (c) => {
       open_interest_btc: null,
       oi_change_24h_pct: null,
       long_short_ratio: null,
+      liquidation_recent_count: null,
+      liquidation_recent_long_count: null,
+      liquidation_recent_short_count: null,
+      liquidation_recent_oldest_ts: null,
       timestamp: now,
       source: "OKX",
     };
 
-    // Funding rate + Open Interest em paralelo (2 chamadas OKX, sem serial)
-    const [frJson, oiJson] = await Promise.allSettled([
-      fetch("https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP").then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(`funding-rate HTTP ${r.status}`))
-      ),
-      fetch("https://www.okx.com/api/v5/public/open-interest?instId=BTC-USDT-SWAP").then((r) =>
-        r.ok ? r.json() : Promise.reject(new Error(`open-interest HTTP ${r.status}`))
-      ),
+    const fetchOk = (url: string) =>
+      fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))));
+
+    // Funding + OI + L/S ratio + liquidações, em paralelo (sem dependência entre si)
+    const [frJson, oiJson, lsJson, liqJson] = await Promise.allSettled([
+      fetchOk("https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP"),
+      fetchOk("https://www.okx.com/api/v5/public/open-interest?instId=BTC-USDT-SWAP"),
+      fetchOk("https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=1H"),
+      fetchOk("https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&instId=BTC-USDT-SWAP&state=filled"),
     ]);
 
     if (frJson.status === "fulfilled") {
@@ -71,14 +80,37 @@ derivativesRoutes.get("/", async (c) => {
       };
       if (j.code === "0" && j.data?.[0]) {
         const oi = j.data[0];
-        // oi = contratos (ex: 3.1M), oiCcy = BTC (ex: 31.8k), oiUsd = USD (ex: $2.0B)
         snapshot.open_interest_btc = parseFloat(oi.oiCcy);
         snapshot.open_interest_usd = parseFloat(oi.oiUsd);
       }
     }
 
-    // L/S ratio nao disponivel via OKX public API (requer conta)
-    // Dados de funding rate + OI ja fornecem boa leitura do mercado de futuros
+    if (lsJson.status === "fulfilled") {
+      const j = lsJson.value as { code: string; data: Array<[string, string]> };
+      if (j.code === "0" && Array.isArray(j.data) && j.data[0]?.[1]) {
+        const ratio = parseFloat(j.data[0][1]);
+        if (Number.isFinite(ratio)) snapshot.long_short_ratio = ratio;
+      }
+    }
+
+    if (liqJson.status === "fulfilled") {
+      const j = liqJson.value as {
+        code: string;
+        data: Array<{ details?: Array<{ posSide?: string; ts?: string }> }>;
+      };
+      const details = (j.code === "0" && j.data?.[0]?.details) || [];
+      if (details.length > 0) {
+        snapshot.liquidation_recent_count = details.length;
+        snapshot.liquidation_recent_long_count = details.filter((d) => d.posSide === "long").length;
+        snapshot.liquidation_recent_short_count = details.filter((d) => d.posSide === "short").length;
+        const times = details
+          .map((d) => (d.ts ? Number(d.ts) : NaN))
+          .filter((t) => Number.isFinite(t));
+        if (times.length > 0) {
+          snapshot.liquidation_recent_oldest_ts = new Date(Math.min(...times)).toISOString();
+        }
+      }
+    }
 
     await c.env.KV.put(cacheKey, JSON.stringify(snapshot), { expirationTtl: 600 });
 
