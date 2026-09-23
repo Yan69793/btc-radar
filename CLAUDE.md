@@ -2,6 +2,10 @@
 
 Dashboard Bitcoin (painel + API). Produção: Pages `https://btc-radar.pages.dev/painel/` + Worker `https://btc-radar.prospects-intel.workers.dev`. Repo: `E:\Diretorio\Claude\ARQUIVO\Btc-radar\btc-radar`, remote `github.com/Yan69793/btc-radar` (público).
 
+## Pitfall de ambiente (custou uma sessão, não repetir)
+O repo git fica **um nível abaixo** de `ARQUIVO\Btc-radar\`. A pasta `ARQUIVO\Btc-radar\` em si não é repositório, é só um diretório de workspace que também guarda `landing-higgsfield/` (repo separado) e `diagnosticos/`. Um `cd "ARQUIVO\Btc-radar" && git status` (ou qualquer `cd X && git ...` onde X não é a raiz do repo) faz o git subir a árvore até achar `.git` em outro lugar, e ele responde sobre esse repositório errado sem erro nenhum, sem avisar que mudou de alvo. Já aconteceu (sessão de reconhecimento de 22/09/2026): o comando pareceu funcionar e devolveu estado de um repositório diferente.
+Sempre usar `git -C "E:\Diretorio\Claude\ARQUIVO\Btc-radar\btc-radar" <comando>` com o caminho explícito, nunca `cd` encadeado. Na dúvida, `git -C <caminho> rev-parse --show-toplevel` e comparar com o caminho esperado antes de confiar na saída.
+
 ## Estrutura
 - `frontend/` — React 19 + Vite, `base: '/painel/'`, rotas lazy. Build padrão sai em `dist/`; o deploy atual usa `frontend/pages-dist/` (landing na raiz + painel em `/painel/`, gerada manualmente, não pelo build).
 - `worker/` — API Hono no Cloudflare Workers (`src/index.ts`), D1 `btc-radar` + KV, cron `0 */1 * * *` (`src/cron.ts`). Versão única em `src/version.ts` (`SERVICE_VERSION`, reportada no `/api/health`).
