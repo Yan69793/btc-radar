@@ -47,30 +47,26 @@ const TIMEFRAME_DESC: Record<string, string> = {
   long: 'Investimento de 6 meses ou mais',
 }
 
-const VERDICT_STYLE: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+const VERDICT_STYLE: Record<string, { bg: string; text: string; border: string }> = {
   COMPRAR: {
     bg: 'bg-accent-green/[0.06]',
     text: 'text-accent-green',
     border: 'border-accent-green/20 hover:border-accent-green/35',
-    badge: 'bg-accent-green/12 text-accent-green border-accent-green/25',
   },
   AGUARDAR: {
     bg: 'bg-dark-bg-card',
     text: 'text-dark-text-muted',
     border: 'border-dark-bg-border hover:border-white/15',
-    badge: 'bg-dark-bg-hover text-dark-text-muted border-dark-bg-border',
   },
   VENDER: {
     bg: 'bg-accent-red/[0.06]',
     text: 'text-accent-red',
     border: 'border-accent-red/20 hover:border-accent-red/35',
-    badge: 'bg-accent-red/12 text-accent-red border-accent-red/25',
   },
   REDUZIR: {
     bg: 'bg-accent-yellow/[0.05]',
     text: 'text-accent-yellow',
     border: 'border-accent-yellow/20 hover:border-accent-yellow/35',
-    badge: 'bg-accent-yellow/12 text-accent-yellow border-accent-yellow/25',
   },
 }
 
@@ -152,7 +148,7 @@ function SignalCard({ signal }: { signal: SignalDocument }) {
           </div>
           <span className="text-dark-text-primary font-semibold text-sm">{strategyLabel}</span>
         </div>
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${style.badge}`}>
+        <span className={`verdict-stamp ${style.text}`}>
           {signal.verdict}
         </span>
       </div>
@@ -287,8 +283,6 @@ export function Signals() {
       <PageHeader
         eyebrow="Analise"
         title="Sinais"
-        poster="/assets/film-sinais.png"
-        clip="/assets/film-sinais.mp4"
         meta={
           <>
             6 estrategias · 3 horizontes · {counts.total} sinais
