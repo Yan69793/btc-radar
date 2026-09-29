@@ -36,35 +36,11 @@ const TIMEFRAME_CONFIG: Record<string, { label: string; description: string }> =
   long: { label: 'Longo Prazo', description: '6 meses ou mais' },
 }
 
-const CONSENSUS_STYLE: Record<string, { bg: string; border: string; text: string; label: string; dot: string }> = {
-  COMPRAR: {
-    bg: 'bg-accent-green/[0.07]',
-    border: 'border-accent-green/30',
-    text: 'text-accent-green',
-    label: 'COMPRAR',
-    dot: 'bg-accent-green',
-  },
-  VENDER: {
-    bg: 'bg-accent-red/[0.07]',
-    border: 'border-accent-red/30',
-    text: 'text-accent-red',
-    label: 'VENDER',
-    dot: 'bg-accent-red',
-  },
-  AGUARDAR: {
-    bg: 'bg-dark-bg-card',
-    border: 'border-dark-bg-border',
-    text: 'text-dark-text-muted',
-    label: 'AGUARDAR',
-    dot: 'bg-dark-text-dim',
-  },
-  MISTO: {
-    bg: 'bg-accent-yellow/[0.05]',
-    border: 'border-accent-yellow/25',
-    text: 'text-accent-yellow',
-    label: 'DIVERGENTE',
-    dot: 'bg-accent-yellow',
-  },
+const CONSENSUS_STYLE: Record<string, { text: string; label: string }> = {
+  COMPRAR: { text: 'text-accent-green', label: 'COMPRAR' },
+  VENDER: { text: 'text-accent-red', label: 'VENDER' },
+  AGUARDAR: { text: 'text-dark-text-muted', label: 'AGUARDAR' },
+  MISTO: { text: 'text-accent-yellow', label: 'DIVERGENTE' },
 }
 
 function aggregateTimeframe(signals: SignalDoc[], timeframe: string): TimeframeVerdict {
@@ -116,51 +92,27 @@ function aggregateTimeframe(signals: SignalDoc[], timeframe: string): TimeframeV
   }
 }
 
-function TimeframeCard({ tf }: { tf: TimeframeVerdict }) {
+function TimeframeColumn({ tf }: { tf: TimeframeVerdict }) {
   const style = CONSENSUS_STYLE[tf.consensus]!
 
   return (
-    <div className={`card overflow-hidden transition-colors duration-150 ${style.border} hover:border-opacity-60`}>
-      {/* Top strip */}
-      <div className={`px-4 py-3 ${style.bg} border-b ${style.border}`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-dark-text-primary font-semibold text-sm">{tf.label}</div>
-            <div className="text-dark-text-dim text-[11px] mt-0.5">{tf.description}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${style.dot} ${tf.consensus === 'COMPRAR' || tf.consensus === 'VENDER' ? 'animate-pulse' : ''}`} />
-            <span className={`text-sm font-bold ${style.text}`}>{style.label}</span>
-          </div>
+    <div className="px-4 py-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-dark-text-primary font-semibold text-sm">{tf.label}</div>
+          <div className="text-dark-text-dim text-[11px] mt-0.5">{tf.description}</div>
         </div>
+        <span className={`verdict-stamp ${style.text}`}>{style.label}</span>
       </div>
 
-      {/* Body */}
-      <div className="px-4 py-3 space-y-3">
-        {/* Strategy breakdown pills */}
+      <div className="space-y-3">
         {tf.total > 0 ? (
-          <div className="flex items-center gap-2 flex-wrap">
-            {tf.comprar > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-green/10 text-accent-green border border-accent-green/20 font-medium">
-                {tf.comprar} Comprar
-              </span>
-            )}
-            {tf.vender > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-red/10 text-accent-red border border-accent-red/20 font-medium">
-                {tf.vender} Vender
-              </span>
-            )}
-            {tf.reduzir > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/20 font-medium">
-                {tf.reduzir} Reduzir
-              </span>
-            )}
-            {tf.aguardar > 0 && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-dark-bg-hover text-dark-text-dim border border-dark-bg-border font-medium">
-                {tf.aguardar} Aguardar
-              </span>
-            )}
-            <span className="text-dark-text-dim text-[10px] ml-auto">{tf.total} estrategias</span>
+          <div className="flex items-baseline gap-x-3 gap-y-1 flex-wrap text-[11px] metric">
+            {tf.comprar > 0 && <span className="text-accent-green">{tf.comprar} comprar</span>}
+            {tf.vender > 0 && <span className="text-accent-red">{tf.vender} vender</span>}
+            {tf.reduzir > 0 && <span className="text-accent-yellow">{tf.reduzir} reduzir</span>}
+            {tf.aguardar > 0 && <span className="text-dark-text-dim">{tf.aguardar} aguardar</span>}
+            <span className="text-dark-text-dim ml-auto">de {tf.total}</span>
           </div>
         ) : (
           <div className="text-dark-text-dim text-xs italic">Nenhum sinal gerado para este horizonte</div>
@@ -217,11 +169,7 @@ export function RecommendationPanel() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="card p-6 shimmer-loading" style={{ height: '180px' }} />
-        ))}
-      </div>
+      <div className="card shimmer-loading" style={{ height: '180px' }} />
     )
   }
 
@@ -235,9 +183,9 @@ export function RecommendationPanel() {
           </span>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="card grid grid-cols-1 divide-y divide-dark-bg-border md:grid-cols-3 md:divide-x md:divide-y-0">
         {timeframes.map((tf) => (
-          <TimeframeCard key={tf.timeframe} tf={tf} />
+          <TimeframeColumn key={tf.timeframe} tf={tf} />
         ))}
       </div>
     </div>

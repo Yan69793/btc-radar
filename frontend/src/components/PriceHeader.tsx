@@ -14,10 +14,7 @@ export function PriceHeader({ data }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-8">
         {/* Left: Identity + Price */}
         <div className="shrink-0">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent-yellow/40 bg-accent-yellow/10">
-              <span className="font-mono text-lg font-semibold text-accent-yellow">₿</span>
-            </div>
+          <div className="mb-3">
             <div>
               <h2 className="text-dark-text-primary font-semibold text-lg leading-tight">Bitcoin</h2>
               <span className="text-dark-text-dim text-[13px]">BTC/USD</span>

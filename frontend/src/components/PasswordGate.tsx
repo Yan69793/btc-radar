@@ -57,45 +57,37 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const inputClass =
     'w-full rounded-lg border border-dark-bg-border bg-dark-bg px-4 py-3 text-sm text-dark-text-primary transition-all placeholder:text-dark-text-dim focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20 focus:outline-none'
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-dark-bg p-4">
-      {/* ─── Card de acesso ─── */}
-      <div className="relative w-full max-w-md">
-        <div className="card p-8 sm:p-10 space-y-6">
-          <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent-blue/40 bg-dark-bg-elevated">
-              <span className="text-2xl font-bold text-accent-blue">₿</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-dark-text-primary">BTC Radar</h1>
-              <p className="mt-1.5 text-sm text-dark-text-muted">
-                {mode === 'login'
-                  ? 'Entre com seu email e senha para acessar o painel.'
-                  : 'Crie sua conta para acessar o painel.'}
-              </p>
-            </div>
-          </div>
+  const tabClass = (active: boolean) =>
+    `-mb-px border-b-2 pb-2 text-sm font-medium transition-colors ${
+      active
+        ? 'border-accent-yellow text-dark-text-primary'
+        : 'border-transparent text-dark-text-muted hover:text-dark-text-primary'
+    }`
 
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-dark-bg-border bg-dark-bg p-1">
+  return (
+    <div className="flex min-h-screen bg-dark-bg px-4 py-10 sm:px-8 sm:py-16">
+      <div className="w-full max-w-sm sm:ml-[8vw] sm:mt-[6vh]">
+        <div className="eyebrow">Painel</div>
+        <h1 className="mt-2 text-2xl font-medium tracking-tight text-dark-text-primary">BTC Radar</h1>
+        <p className="mt-1 text-sm text-dark-text-muted">Preço, on-chain e sentimento do Bitcoin.</p>
+
+        <div className="card mt-8 space-y-6 p-5 sm:p-6">
+          <div role="tablist" className="flex gap-6 border-b border-dark-bg-border">
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
               onClick={() => switchMode('login')}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                mode === 'login'
-                  ? 'bg-accent-blue text-white'
-                  : 'text-dark-text-muted hover:text-dark-text-primary'
-              }`}
+              className={tabClass(mode === 'login')}
             >
               Entrar
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'register'}
               onClick={() => switchMode('register')}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                mode === 'register'
-                  ? 'bg-accent-blue text-white'
-                  : 'text-dark-text-muted hover:text-dark-text-primary'
-              }`}
+              className={tabClass(mode === 'register')}
             >
               Criar conta
             </button>
@@ -104,7 +96,7 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label htmlFor="gate-name" className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
+                <label htmlFor="gate-name" className="eyebrow block">
                   Nome
                 </label>
                 <input
@@ -119,7 +111,7 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
               </div>
             )}
             <div className="space-y-1.5">
-              <label htmlFor="gate-email" className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
+              <label htmlFor="gate-email" className="eyebrow block">
                 Email
               </label>
               <input
@@ -134,7 +126,7 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="gate-password" className="text-xs font-medium uppercase tracking-wider text-dark-text-muted">
+              <label htmlFor="gate-password" className="eyebrow block">
                 Senha
               </label>
               <input
@@ -160,10 +152,6 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
               {checking ? 'Verificando...' : mode === 'login' ? 'Entrar no painel' : 'Criar conta e entrar'}
             </button>
           </form>
-
-          <p className="text-center text-xs text-dark-text-dim">
-            Preço, on-chain e sentimento em tempo real.
-          </p>
         </div>
       </div>
     </div>

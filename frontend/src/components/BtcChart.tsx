@@ -137,9 +137,19 @@ export function BtcChart() {
 
   return (
     <div className="card p-3 sm:p-5 h-full flex flex-col">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between gap-3 mb-3">
         <h3 className="text-dark-text-primary font-semibold text-sm">BTC/USD Chart</h3>
-        <span className="text-dark-text-dim text-xs">90 dias · {last.label}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-dark-text-dim text-xs">90 dias · {last.label}</span>
+          <a
+            className="btc-tradingview-link"
+            href="https://www.tradingview.com/chart/?symbol=COINBASE%3ABTCUSD"
+            target="_blank"
+            rel="noreferrer"
+          >
+            TradingView ↗
+          </a>
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">

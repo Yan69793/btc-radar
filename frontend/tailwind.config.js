@@ -58,6 +58,7 @@ export default {
             fontFamily: {
                 sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
                 mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+                display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
             },
             borderRadius: {
                 DEFAULT: '6px',

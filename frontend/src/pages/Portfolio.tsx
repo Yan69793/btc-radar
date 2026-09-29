@@ -165,7 +165,6 @@ export function Portfolio() {
       <PageHeader
         eyebrow="Operacao"
         title="Portfolio"
-        poster="/assets/film-acao.png"
         meta="Posicao atual e historico de saldos"
         actions={
           <button onClick={() => setShowSnapshotForm(true)} className="rounded-md bg-accent-blue px-3.5 py-2 text-sm font-medium text-dark-bg transition-colors hover:brightness-110">

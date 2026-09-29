@@ -207,7 +207,6 @@ export function Backtest() {
       <PageHeader
         eyebrow="Analise"
         title="Backtest"
-        poster="/assets/film-pulso.png"
         meta={
           <>
             Motor proprio (pandas/numpy)

@@ -1,74 +1,33 @@
 import { useApi } from '../hooks/useApi'
-import { PriceHeader } from '../components/PriceHeader'
-import { FearGreedMeter } from '../components/FearGreedMeter'
-import { NewsFeed } from '../components/NewsFeed'
-import { BtcChart } from '../components/BtcChart'
-import { SkeletonCard } from '../components/Skeleton'
-import { RecommendationPanel } from '../components/RecommendationPanel'
-import { PageHeader } from '../components/PageHeader'
-import { fmtTimeAgo } from '../lib/formatters'
-import type { PriceSnapshot, FearGreedData, NewsItem } from '../types'
+import { TechHero } from '../components/TechHero'
+import { DashboardWorkbench } from '../components/DashboardWorkbench'
+import type { PriceSnapshot, FearGreedData } from '../types'
 
 export function Dashboard() {
   const { data: price, loading: priceLoading, error: priceError } = useApi<PriceSnapshot>(
     '/api/price/latest',
     30_000
   )
-  const { data: fearGreed, loading: fgLoading, error: fgError } = useApi<FearGreedData>(
+  const { data: fearGreed } = useApi<FearGreedData>(
     '/api/sentiment/fear-greed',
-    120_000
-  )
-  const { data: news, loading: newsLoading, error: newsError } = useApi<NewsItem[]>(
-    '/api/news',
     120_000
   )
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 animate-fade-in">
-      <PageHeader
-        eyebrow="Mercado"
-        title="Dashboard"
-        poster="/assets/film-pulso.png"
-        clip="/assets/film-pulso.mp4"
-        meta={
-          <>
-            Bitcoin
-            {price?.timestamp && <span className="ml-2">dado de {fmtTimeAgo(price.timestamp)}</span>}
-          </>
-        }
+    <div className="btc-overview-page animate-fade-in">
+      <TechHero
+        price={price ?? null}
+        fearGreed={fearGreed ?? null}
+        loading={priceLoading}
       />
 
-      {/* Preco e metricas de mercado */}
-      <section className="space-y-6">
-        {priceLoading ? <SkeletonCard /> : price ? <PriceHeader data={price} /> : null}
-        {priceError && (
-          <div className="card border-accent-red/30 p-4 text-sm text-accent-red">
-            Erro ao carregar preco: {priceError}
-          </div>
-        )}
-      </section>
-
-      {/* A leitura parte do dado observado e chega à interpretação. */}
-      <RecommendationPanel />
-
-      {/* Grid: grafico + sentimento + noticias */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="h-[320px] sm:h-[400px] lg:col-span-2 lg:h-[500px]">
-          <BtcChart />
+      {priceError && (
+        <div className="btc-system-alert">
+          Mercado em modo degradado: {priceError}
         </div>
+      )}
 
-        <div className="space-y-6">
-          {fgLoading ? <SkeletonCard /> : fearGreed ? <FearGreedMeter data={fearGreed} /> : null}
-          {fgError && !fearGreed && (
-            <div className="card p-3 text-xs text-dark-text-dim">Fear &amp; Greed indisponivel</div>
-          )}
-
-          {newsLoading ? <SkeletonCard /> : news ? <NewsFeed items={news} /> : null}
-          {newsError && !news && (
-            <div className="card p-3 text-xs text-dark-text-dim">Noticias indisponiveis</div>
-          )}
-        </div>
-      </section>
+      <DashboardWorkbench />
     </div>
   )
 }

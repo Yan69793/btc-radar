@@ -29,9 +29,9 @@ export function NewsFeed({ items }: Props) {
       </div>
 
       <div className="space-y-2 max-h-[500px] overflow-y-auto">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <a
-            key={item.id}
+            key={`${item.id}-${item.url}-${index}`}
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"

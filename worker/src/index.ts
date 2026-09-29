@@ -21,6 +21,8 @@ import { briefingRoutes } from "./routes/briefing";
 import { whatsappRoutes } from "./routes/whatsapp";
 import { authRoutes } from "./routes/auth";
 import { marketRoutes } from "./routes/market";
+import { macroContextRoutes } from "./routes/macro-context";
+import { scenarioRoutes } from "./routes/scenarios";
 import { handleScheduled } from "./cron";
 import { writeGuard } from "./lib/write-guard";
 
@@ -109,6 +111,8 @@ app.route("/api/briefing", briefingRoutes);
 app.route("/api/whatsapp", whatsappRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/market", marketRoutes);
+app.route("/api/macro-context", macroContextRoutes);
+app.route("/api/scenarios", scenarioRoutes);
 
 // Cron handler — coleta batch programada
 export default {

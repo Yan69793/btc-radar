@@ -503,7 +503,6 @@ export function Trades() {
       <PageHeader
         eyebrow="Operacao"
         title="Trades"
-        poster="/assets/film-sinais.png"
         meta="Registro manual de operacoes e acompanhamento de P&L"
         actions={
           <button onClick={() => setShowForm(true)} className="rounded-md bg-accent-blue px-3.5 py-2 text-sm font-medium text-dark-bg transition-colors hover:brightness-110">

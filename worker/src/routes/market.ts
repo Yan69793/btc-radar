@@ -28,16 +28,38 @@ function median(values: number[]): number | null {
   return clean.length % 2 ? clean[m]! : (clean[m - 1]! + clean[m]!) / 2;
 }
 
-async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+// Busca os dois endpoints da CoinPaprika em sequência (não em paralelo) para
+// não estourar o rate limit dela. Cada chamada captura o próprio erro, então
+// uma falha na primeira não impede a segunda.
+async function fetchCoinPaprikaSequential(): Promise<{
+  brlPrice: number | null;
+  cpUsdPrice: number | null;
+  brlStatus: "fulfilled" | "rejected";
+  cpUsdStatus: "fulfilled" | "rejected";
+  brlReason?: string;
+  cpUsdReason?: string;
+}> {
+  let brlPrice: number | null = null;
+  let brlStatus: "fulfilled" | "rejected" = "rejected";
+  let brlReason: string | undefined;
   try {
-    const res = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as T;
-  } finally {
-    clearTimeout(timer);
+    brlPrice = (await fetchBRLPrice()).price;
+    brlStatus = "fulfilled";
+  } catch (e) {
+    brlReason = e instanceof Error ? e.message : "Unknown error";
   }
+
+  let cpUsdPrice: number | null = null;
+  let cpUsdStatus: "fulfilled" | "rejected" = "rejected";
+  let cpUsdReason: string | undefined;
+  try {
+    cpUsdPrice = (await fetchCPTicker()).price;
+    cpUsdStatus = "fulfilled";
+  } catch (e) {
+    cpUsdReason = e instanceof Error ? e.message : "Unknown error";
+  }
+
+  return { brlPrice, cpUsdPrice, brlStatus, cpUsdStatus, brlReason, cpUsdReason };
 }
 
 marketRoutes.get("/", async (c) => {
@@ -47,13 +69,22 @@ marketRoutes.get("/", async (c) => {
   const cached = await kvGetJSON<CachedMarket>(c.env.KV, MARKET_KEY);
   const cachedAge = cached ? now - new Date(cached.cached_at).getTime() : Infinity;
 
+  if (cached && cachedAge < FRESH_MS) {
+    return c.json({
+      success: true,
+      data: cached.data,
+      cached: true,
+      timestamp: iso(),
+    });
+  }
+
   const build = async (): Promise<unknown> => {
-    // Book MB + referências globais (BRL e USD) em paralelo, sem dependência.
-    const [mbRaw, cpBrl, cpUsd, okxUsd] = await Promise.allSettled([
+    // Book MB + OKX em paralelo (provedores distintos, sem rate limit compartilhado).
+    // CoinPaprika roda sequencial internamente pra não estourar 429 nela.
+    const [mbRaw, okxUsdRaw, cpRaw] = await Promise.allSettled([
       fetchMBOrderBook(5000),
-      fetchBRLPrice(),
-      fetchCPTicker(),
       fetchOKXTicker(),
+      fetchCoinPaprikaSequential(),
     ]);
 
     const book = mbRaw.status === "fulfilled" ? mbRaw.value : null;
@@ -61,9 +92,10 @@ marketRoutes.get("/", async (c) => {
       ? computeMicrostructure(book, 10, iso())
       : computeMicrostructure({ asks: [], bids: [] }, 10, iso());
 
-    const brlPrice = cpBrl.status === "fulfilled" ? cpBrl.value.price : null;
-    const cpUsdPrice = cpUsd.status === "fulfilled" ? cpUsd.value.price : null;
-    const okxUsdPrice = okxUsd.status === "fulfilled" ? okxUsd.value.price : null;
+    const okxUsdPrice = okxUsdRaw.status === "fulfilled" ? okxUsdRaw.value.price : null;
+    const cp = cpRaw.status === "fulfilled" ? cpRaw.value : null;
+    const brlPrice = cp?.brlPrice ?? null;
+    const cpUsdPrice = cp?.cpUsdPrice ?? null;
 
     const globalUsd = median([cpUsdPrice, okxUsdPrice].filter((v): v is number => v != null));
     const premiumPct = computeBrlPremium(micro.midpoint, brlPrice);
@@ -96,6 +128,22 @@ marketRoutes.get("/", async (c) => {
 
     const status = (ageSeconds ?? 0) > STALE_MS / 1000 ? "stale" : "fresh";
 
+    // Diagnóstico de falha na CoinPaprika, expira em 1h, só grava quando algo falhou
+    if (cp && (cp.brlStatus === "rejected" || cp.cpUsdStatus === "rejected")) {
+      const diagEntry = {
+        timestamp: iso(),
+        brlStatus: cp.brlStatus,
+        brlReason: cp.brlReason,
+        cpUsdStatus: cp.cpUsdStatus,
+        cpUsdReason: cp.cpUsdReason,
+      };
+      try {
+        await c.env.KV.put("btc:market:cp-diagnostics", JSON.stringify(diagEntry), {
+          expirationTtl: 3600,
+        });
+      } catch {}
+    }
+
     return {
       asset: "BTC",
       quote: "BRL",
@@ -122,15 +170,6 @@ marketRoutes.get("/", async (c) => {
       },
     };
   };
-
-  if (cached && cachedAge < FRESH_MS) {
-    return c.json({
-      success: true,
-      data: cached.data,
-      cached: true,
-      timestamp: iso(),
-    });
-  }
 
   try {
     const data = await build();

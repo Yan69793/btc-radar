@@ -362,8 +362,6 @@ export function Alerts() {
       <PageHeader
         eyebrow="Operacao"
         title="Alertas"
-        poster="/assets/film-acao.png"
-        clip="/assets/film-acao.mp4"
         meta="Notificacoes de preco e condicoes tecnicas"
         actions={
           <>

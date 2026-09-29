@@ -2,30 +2,13 @@ import { useApi } from '../../hooks/useApi'
 import { fmtPrice, fmtPct, pctColor } from '../../lib/formatters'
 import type { PriceSnapshot } from '../../types'
 
-interface Props {
-  onMenuClick: () => void
-}
-
-export function TopBar({ onMenuClick }: Props) {
+export function TopBar() {
   const { data: price, loading } = useApi<PriceSnapshot>('/api/price/latest', 30_000)
 
   return (
     <header
       className="flex h-12 shrink-0 items-center gap-2 border-b border-dark-bg-border bg-dark-bg px-3 sm:gap-4 sm:px-4 lg:gap-6 lg:px-6"
     >
-      {/* Hamburger (mobile only) */}
-      <button
-        onClick={onMenuClick}
-        className="lg:hidden p-2 -ml-1 rounded-lg text-dark-text-muted hover:text-dark-text-primary hover:bg-white/[0.06] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-        aria-label="Abrir menu"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
-
       {loading || !price ? (
         <>
           <div className="flex items-center gap-2">

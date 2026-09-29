@@ -128,7 +128,6 @@ export function Settings() {
       <PageHeader
         eyebrow="Conta"
         title="Configurações"
-        poster="/assets/film-acao.png"
         meta="Preferências de notificação e canais"
         context="SETTINGS"
       />

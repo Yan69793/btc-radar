@@ -137,7 +137,6 @@ export function Briefing() {
       <PageHeader
         eyebrow="Analise"
         title="Briefing diario"
-        poster="/assets/film-pulso.png"
         meta={
           <>
             Gerado por IA a partir dos dados coletados

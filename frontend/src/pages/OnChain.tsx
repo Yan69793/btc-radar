@@ -162,7 +162,6 @@ export function OnChain() {
       <PageHeader
         eyebrow="Rede"
         title="On-chain"
-        poster="/assets/film-cover.png"
         meta={
           <>
             Metricas da rede Bitcoin

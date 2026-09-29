@@ -37,7 +37,34 @@ async function getFearGreed(kv: KVNamespace): Promise<FearGreedData | null> {
   }
 }
 
-async function fetchWithRetry(interval: "1h" | "4h" | "1d" | "1w", limit: number): Promise<OHLCV[]> {
+export async function fetchStoredOHLCV(
+  db: D1Database,
+  interval: "1h" | "4h" | "1d" | "1w",
+  limit: number,
+): Promise<OHLCV[]> {
+  const result = await db.prepare(
+    `SELECT timestamp, open, high, low, close, volume, interval, source
+     FROM prices WHERE interval = ? ORDER BY timestamp DESC LIMIT ?`
+  ).bind(interval, limit).all<OHLCV>();
+  return (result.results ?? [])
+    .map((row) => ({
+      timestamp: String(row.timestamp),
+      open: Number(row.open),
+      high: Number(row.high),
+      low: Number(row.low),
+      close: Number(row.close),
+      volume: Number(row.volume),
+      interval,
+      source: String(row.source ?? "D1"),
+    }))
+    .reverse();
+}
+
+async function fetchWithRetry(
+  env: Env,
+  interval: "1h" | "4h" | "1d" | "1w",
+  limit: number,
+): Promise<OHLCV[]> {
   // deduped: dois requests simultaneos com cache miss (RecommendationPanel + pagina
   // Signals chamam /api/signals) compartilham a mesma chamada em voo
   const okxKey = `okx:ohlcv:${interval}:${limit}`;
@@ -52,7 +79,18 @@ async function fetchWithRetry(interval: "1h" | "4h" | "1d" | "1w", limit: number
     }
   }
 
-  // Fallback CoinPaprika: mesma OKX que acabou de falhar nao ajuda
+  // Fallback local: o cron persiste OHLCV no D1. Se os provedores estiverem
+  // temporariamente indisponiveis, sinais continuam operando sobre a ultima serie
+  // coletada em vez de devolver vazio. A indisponibilidade externa segue registrada
+  // no health/cron; este fallback nao mascara a telemetria de coleta.
+  try {
+    const stored = await fetchStoredOHLCV(env.DB, interval, limit);
+    if (stored.length >= Math.min(20, limit)) return stored;
+  } catch (err) {
+    console.error(`[signals] D1 OHLCV ${interval} falhou: ${err instanceof Error ? err.message : err}`);
+  }
+
+  // Ultima perna: CoinPaprika.
   try {
     const cp = await deduped(`cp:ohlcv:${interval}:${limit}`, () => fetchCPOHLCV(interval, limit));
     if (cp.length > 0) return cp;
@@ -63,6 +101,7 @@ async function fetchWithRetry(interval: "1h" | "4h" | "1d" | "1w", limit: number
 }
 
 async function processTimeframe(
+  env: Env,
   tf: Timeframe,
   interval: "1h" | "4h" | "1d",
   limit: number,
@@ -70,7 +109,7 @@ async function processTimeframe(
   debugInfo: Record<string, unknown>
 ): Promise<SignalDocument[]> {
   try {
-    const candles = await fetchWithRetry(interval, limit);
+    const candles = await fetchWithRetry(env, interval, limit);
     debugInfo[`${tf}_candles`] = candles.length;
 
     if (candles.length < 20) {
@@ -116,7 +155,7 @@ signalRoutes.get("/", async (c) => {
     const debugInfo: Record<string, unknown> = {};
     const results = await Promise.allSettled(
       timeframesToProcess.map(({ tf, interval, limit }) =>
-        processTimeframe(tf, interval, limit, fearGreed, debugInfo)
+        processTimeframe(c.env, tf, interval, limit, fearGreed, debugInfo)
       )
     );
 
@@ -167,7 +206,7 @@ signalRoutes.get("/:strategy", async (c) => {
       const debugInfo: Record<string, unknown> = {};
       const results = await Promise.allSettled(
         TIMEFRAMES.map(({ tf, interval, limit }) =>
-          processTimeframe(tf, interval, limit, fearGreed, debugInfo)
+          processTimeframe(c.env, tf, interval, limit, fearGreed, debugInfo)
         )
       );
       signals = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
