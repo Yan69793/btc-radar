@@ -20,10 +20,10 @@ export function PlatformHeader() {
   return (
     <header className="btc-platform-header">
       <div className="btc-platform-header-main">
-        <NavLink to="/" className="btc-platform-brand" aria-label="BTC Radar — Visão Geral">
+        <NavLink to="/" className="btc-platform-brand" aria-label="Aureus — Visão Geral">
           <span className="btc-platform-mark">₿</span>
           <span className="btc-platform-wordmark">
-            <strong>BTC RADAR</strong>
+            <strong>AUREUS</strong>
             <small>market intelligence</small>
           </span>
         </NavLink>

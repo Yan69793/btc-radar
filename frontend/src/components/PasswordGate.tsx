@@ -68,7 +68,7 @@ export function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
     <div className="flex min-h-screen bg-dark-bg px-4 py-10 sm:px-8 sm:py-16">
       <div className="w-full max-w-sm sm:ml-[8vw] sm:mt-[6vh]">
         <div className="eyebrow">Painel</div>
-        <h1 className="mt-2 text-2xl font-medium tracking-tight text-dark-text-primary">BTC Radar</h1>
+        <h1 className="mt-2 text-2xl font-medium tracking-tight text-dark-text-primary">Aureus</h1>
         <p className="mt-1 text-sm text-dark-text-muted">Preço, on-chain e sentimento do Bitcoin.</p>
 
         <div className="card mt-8 space-y-6 p-5 sm:p-6">

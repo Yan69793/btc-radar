@@ -1,4 +1,4 @@
-// BTC Radar — Motor de decisao de notificacao
+// Aureus — Motor de decisao de notificacao
 // Filtra sinais, alertas e dispara push via WhatsApp
 
 import type { Env, SignalDocument } from "../types";
@@ -286,12 +286,12 @@ export async function notifyTriggeredAlerts(
 
     for (const triggeredAlert of triggered) {
       const text = [
-        `*BTC Radar — Alerta Disparado*`,
+        `*Aureus — Alerta Disparado*`,
         ``,
         `Condicao: ${triggeredAlert.condition}`,
         `Preco atual: ${priceStr}`,
         ``,
-        `_Gerencie seus alertas em btc-radar.pages.dev/alerts_`,
+        `_Gerencie seus alertas em aureusbtc.multi-assets.com/painel/alerts_`,
       ].join("\n");
 
       for (const sub of alertSubscribers) {
@@ -327,7 +327,7 @@ export async function notifyBriefing(
 
     // Limitar summary a 1500 chars para WhatsApp (cabe em 1 mensagem)
     const truncated = summary.length > 1500 ? summary.slice(0, 1497) + "..." : summary;
-    const text = `*BTC Radar — Briefing Diario*\n\n${truncated}\n\n_Leia completo em btc-radar.pages.dev/briefing_`;
+    const text = `*Aureus — Briefing Diario*\n\n${truncated}\n\n_Leia completo em aureusbtc.multi-assets.com/painel/briefing_`;
 
     for (const sub of briefingSubscribers) {
       try {

@@ -38,7 +38,7 @@ export const writeGuard: MiddlewareHandler<{ Bindings: Env }> = async (c, next) 
   // o login no frontend, 403 apenas recusa a acao e mantem o visitante logado.
   if (!session) return deny(401, "Faca login para executar esta acao.");
   if (!isAdminEmail(c.env, session.email)) {
-    return deny(403, "Somente o responsavel pelo BTC Radar pode alterar dados.");
+    return deny(403, "Somente o responsavel pelo Aureus pode alterar dados.");
   }
 
   return next();

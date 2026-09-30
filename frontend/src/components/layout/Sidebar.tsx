@@ -7,7 +7,7 @@ export function Sidebar() {
       {/* Wordmark */}
       <div className="px-4 py-4 border-b border-sidebar-border">
         <div className="text-sidebar-text-active font-semibold text-sm leading-tight">
-          BTC Radar
+          Aureus
         </div>
         <div className="text-sidebar-text text-[11px] font-mono">v0.8.0</div>
       </div>

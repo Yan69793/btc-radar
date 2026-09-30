@@ -73,7 +73,7 @@ function ConsensusCard({ data }: { data: SignalsPayload | null }) {
   return (
     <section className="btc-dash-card btc-consensus-card">
       <div className="btc-dash-card-head">
-        <div><span>SIGNAL ENGINE</span><h3>Consenso BTC Radar</h3></div>
+        <div><span>SIGNAL ENGINE</span><h3>Consenso Aureus</h3></div>
         <Link to="/signals">Abrir sinais ↗</Link>
       </div>
       <div className="btc-consensus-main">

@@ -1,4 +1,4 @@
-// BTC Radar — Rotas WhatsApp (webhook Meta + gestao de assinaturas)
+// Aureus — Rotas WhatsApp (webhook Meta + gestao de assinaturas)
 // GET  /api/whatsapp/webhook   — verificacao do webhook (Meta)
 // POST /api/whatsapp/webhook   — recebe mensagens e status (Meta)
 // POST /api/whatsapp/subscribe — cadastrar numero
@@ -176,7 +176,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
           "UPDATE whatsapp_subscribers SET active = 1, subscribed_at = ? WHERE phone = ?"
         ).bind(now, phone).run();
         await sendTextMessage(env, phone, [
-          "*BTC Radar — Assinatura Reativada*",
+          "*Aureus — Assinatura Reativada*",
           ``,
           `Voce voltara a receber sinais de trading no WhatsApp.`,
           `Envie *PAUSAR* a qualquer momento para interromper.`,
@@ -188,7 +188,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
            VALUES (?, ?, 1, '{"signals":true,"alerts":true,"briefing":false}')`
         ).bind(phone, now).run();
         await sendTextMessage(env, phone, [
-          "*BTC Radar — Assinatura Ativada*",
+          "*Aureus — Assinatura Ativada*",
           ``,
           `A partir de agora voce recebera sinais de trading e alertas de preco no WhatsApp.`,
           ``,
@@ -199,7 +199,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
           `RETOMAR — Retomar notificacoes`,
           `AJUDA — Menu de comandos`,
           ``,
-          `_BTC Radar · btc-radar.pages.dev_`,
+          `_Aureus · aureusbtc.multi-assets.com_`,
         ].join("\n"));
       }
       break;
@@ -209,7 +209,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
       const cached = await env.KV.get("btc:signals:latest", "json");
       if (!cached || !Array.isArray(cached) || cached.length === 0) {
         await sendTextMessage(env, phone, [
-          "*BTC Radar — Sinais*",
+          "*Aureus — Sinais*",
           ``,
           `Nenhum sinal disponivel no momento. Os sinais sao gerados a cada hora.`,
           `Tente novamente em alguns minutos.`,
@@ -225,10 +225,10 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
 
       if (relevant.length === 0) {
         await sendTextMessage(env, phone, [
-          "*BTC Radar — Sinais*",
+          "*Aureus — Sinais*",
           ``,
           `${signals.length} sinais gerados, nenhum de alta conviccao no momento.`,
-          `Visite btc-radar.pages.dev/signals para ver todos.`,
+          `Visite aureusbtc.multi-assets.com/painel/signals para ver todos.`,
         ].join("\n"));
         return;
       }
@@ -240,7 +240,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
 
       if (relevant.length > 3) {
         await sendTextMessage(env, phone,
-          `_...e mais ${relevant.length - 3} sinais. Veja todos em btc-radar.pages.dev/signals_`
+          `_...e mais ${relevant.length - 3} sinais. Veja todos em aureusbtc.multi-assets.com/painel/signals_`
         );
       }
       break;
@@ -258,7 +258,7 @@ async function handleCommand(env: Env, phone: string, command: string): Promise<
 
       const s = subscriberFromRow(sub as Record<string, unknown>);
       await sendTextMessage(env, phone, [
-        "*BTC Radar — Status da Assinatura*",
+        "*Aureus — Status da Assinatura*",
         ``,
         `Status: ${s.active ? "Ativa" : "Pausada"}`,
         `Desde: ${new Date(s.subscribed_at).toLocaleDateString("pt-BR")}`,
@@ -338,7 +338,7 @@ whatsappRoutes.post("/subscribe", async (c) => {
     // Enviar mensagem de boas-vindas
     try {
       await sendTextMessage(c.env, phone, [
-        "*BTC Radar — Bem-vindo*",
+        "*Aureus — Bem-vindo*",
         ``,
         `Sua assinatura foi ativada com sucesso.`,
         `Voce recebera sinais de trading e alertas de preco no WhatsApp.`,
@@ -425,7 +425,7 @@ whatsappRoutes.post("/test", async (c) => {
 
     const phone = body.phone.replace(/[\s+()\-]/g, "");
     const result = await sendTextMessage(c.env, phone, [
-      "*BTC Radar — Teste de Notificacao*",
+      "*Aureus — Teste de Notificacao*",
       ``,
       `Se voce esta recebendo esta mensagem, o WhatsApp Push esta funcionando corretamente.`,
       ``,

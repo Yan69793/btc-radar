@@ -14,7 +14,7 @@ binding = "KV"
 id = "REPLACE_WITH_KV_ID"
 
 [vars]
-CORS_ORIGINS = "https://btc-radar.pages.dev,https://1af6548e.btc-radar.pages.dev,http://localhost:5173"
+CORS_ORIGINS = "https://btc-radar.pages.dev,https://1af6548e.btc-radar.pages.dev,https://aureusbtc.multi-assets.com,http://localhost:5173"
 WHATSAPP_PHONE_NUMBER_ID = ""
 # Contas que podem escrever na API. Clientes do demo ficam so na leitura.
 ADMIN_EMAILS = "szuchmacheryan@gmail.com"

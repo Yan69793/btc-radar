@@ -1,4 +1,4 @@
-// BTC Radar — Cliente WhatsApp Cloud API (Meta Graph API v23.0)
+// Aureus — Cliente WhatsApp Cloud API (Meta Graph API v23.0)
 // Fetch puro, sem dependencias externas.
 // Ref: https://developers.facebook.com/docs/whatsapp/cloud-api
 
@@ -146,7 +146,7 @@ export function formatSignalForWhatsApp(signal: SignalDocument): string {
   const convictionBar = "█".repeat(signal.conviction) + "░".repeat(10 - signal.conviction);
 
   const lines = [
-    `*BTC Radar — Sinal de Trading*`,
+    `*Aureus — Sinal de Trading*`,
     ``,
     `*Estrategia:* ${estrategia}`,
     `*Horizonte:* ${horizonte}`,
@@ -184,7 +184,7 @@ export function formatSignalForWhatsApp(signal: SignalDocument): string {
   }
 
   lines.push(``);
-  lines.push(`_BTC Radar · btc-radar.pages.dev_`);
+  lines.push(`_Aureus · aureusbtc.multi-assets.com_`);
 
   return lines.join("\n");
 }
@@ -298,7 +298,7 @@ export function parseCommand(text: string): { command: string; args: string } | 
 
 export function getHelpMessage(): string {
   return [
-    "*BTC Radar — Comandos WhatsApp*",
+    "*Aureus — Comandos WhatsApp*",
     ``,
     `*ATIVAR* — Ativar recebimento de sinais`,
     `*SINAIS* — Receber sinais atuais agora`,
@@ -309,6 +309,6 @@ export function getHelpMessage(): string {
     ``,
     `_Responda com qualquer comando a qualquer momento._`,
     ``,
-    `_BTC Radar · btc-radar.pages.dev_`,
+    `_Aureus · aureusbtc.multi-assets.com_`,
   ].join("\n");
 }
