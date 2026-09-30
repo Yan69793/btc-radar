@@ -54,10 +54,11 @@
     outline-offset: 2px;
   }
 
-  /* Display: Space Grotesk carrega a personalidade da marca. Inter fica
-     reservado a corpo/rótulo, mono a dado tabular. Três papéis, não dois. */
+  /* Identidade tipográfica: Inter carrega marca, títulos e corpo — a mesma
+     família da landing. JetBrains Mono fica restrito a dado técnico (preço,
+     métrica, timestamp, indicador). Dois papéis, não três. */
   h1, h2, h3 {
-    font-family: 'Sora', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.022em;
     text-wrap: balance;
   }
@@ -157,8 +158,12 @@
    ───────────────────────────────────────────────────────────── */
 
 .btc-platform-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* Shell de aplicativo: altura definida (não min-height) para que
+     .btc-platform-main seja o scroller interno. Sem isso o documento inteiro
+     rola, o cabeçalho de mercado sai da tela nas páginas longas e a navegação
+     inferior fica fora da viewport no mobile. */
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -221,7 +226,7 @@
 
 .btc-platform-wordmark strong {
   color: #eef2f4;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: .76rem;
   font-weight: 700;
   letter-spacing: .08em;
@@ -462,8 +467,10 @@
     display: none;
   }
 
+  /* A navegação inferior é item do shell (não flutua sobre o conteúdo):
+     o padding grande de compensação deixou de ser necessário. */
   .btc-platform-main {
-    padding: 16px 16px 84px;
+    padding: 16px 16px 24px;
   }
 
   .btc-platform-marketbar {
@@ -508,7 +515,7 @@
   }
 
   .btc-platform-main {
-    padding: 12px 10px 82px;
+    padding: 12px 10px 18px;
   }
 
   .btc-platform-main .btc-module-header {
@@ -796,7 +803,7 @@
   display: block;
   margin-top: 4px;
   color: #f2f5f7;
-  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 1rem;
   font-weight: 650;
 }
@@ -1313,20 +1320,26 @@
   font-size: .58rem;
 }
 
+/* Anatomia única dos quatro cards do hero: Hash Rate, Preço, Sentimento e
+   Regime Atual. Mesmo rótulo, mesmo valor, mesmo detalhe, mesmo rodapé —
+   nenhum deles pode parecer um componente à parte. */
 .btc-float-card {
   position: absolute;
   z-index: 7;
-  min-width: 150px;
-  padding: 11px 13px;
-  border: 1px solid rgba(77,138,158,.38);
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  width: 176px;
+  min-height: 86px;
+  padding: 13px 15px;
+  border: 1px solid rgba(77,138,158,.32);
   border-radius: 10px;
-  background: rgba(5,14,19,.8);
+  background: rgba(5,14,19,.82);
   backdrop-filter: blur(12px);
-  box-shadow: 0 15px 38px rgba(0,0,0,.28);
+  box-shadow: 0 14px 34px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.02);
 }
 
-.btc-float-card span,
-.btc-regime-head {
+.btc-float-card > span {
   color: #78858e;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: .51rem;
@@ -1334,120 +1347,49 @@
   letter-spacing: .11em;
 }
 
-.btc-float-card strong {
-  display: block;
-  margin-top: 3px;
+.btc-float-card > strong {
+  overflow: hidden;
   color: #eef3f5;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: .83rem;
+  font-size: .82rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.btc-float-card small {
-  display: block;
-  margin-top: 3px;
-  color: #6f7b84;
+.btc-float-card > small {
+  overflow: hidden;
+  color: #8b98a3;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: .56rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rodapé do card (fonte do dado / consenso). Continua mais discreto que o
+   detalhe, mas acima de 4.5:1 de contraste sobre o fundo do card. */
+.btc-float-card > small.btc-float-foot {
+  color: #75818b;
 }
 
 .btc-float-hash {
-  top: 42px;
-  left: 36%;
+  top: 28px;
+  left: 40%;
 }
 
 .btc-float-price {
-  top: 47px;
-  right: 25%;
+  top: 28px;
+  left: calc(40% + 188px);
 }
 
 .btc-float-sentiment {
-  right: 27%;
-  bottom: 94px;
+  left: 40%;
+  bottom: 76px;
 }
 
-.btc-regime-panel {
-  position: absolute;
-  z-index: 8;
-  top: 30px;
-  right: 24px;
-  width: 230px;
-  padding: 20px;
-  border: 1px solid rgba(58,100,118,.23);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(8,24,30,.88), rgba(5,14,19,.88));
-  box-shadow: 0 24px 60px rgba(0,0,0,.3);
-  backdrop-filter: blur(14px);
-}
-
-.btc-regime-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #31d8c6;
-}
-
-.btc-regime-head i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #31d8c6;
-  box-shadow: 0 0 12px rgba(49,216,198,.7);
-}
-
-.btc-regime-panel > strong {
-  display: block;
-  margin-top: 12px;
-  color: #77ede0;
-  font-size: 1.45rem;
-  font-weight: 650;
-}
-
-.btc-regime-panel > em {
-  display: block;
-  margin-top: 3px;
-  color: #92a1aa;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: .62rem;
-  font-style: normal;
-}
-
-.btc-regime-panel > p {
-  margin-top: 16px;
-  color: #aab3ba;
-  font-size: .73rem;
-  line-height: 1.55;
-}
-
-.btc-regime-footer {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: 2px 10px;
-  margin: 18px -20px -20px;
-  padding: 12px 20px 13px;
-  border-top: 1px solid rgba(63,101,117,.18);
-  background: rgba(255,255,255,.012);
-}
-
-.btc-regime-footer span {
-  grid-column: 1 / -1;
-  color: #60707a;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: .5rem;
-  letter-spacing: .1em;
-}
-
-.btc-regime-footer b {
-  color: #30d5a0;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: .72rem;
-}
-
-.btc-regime-footer small {
-  color: #78848d;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: .56rem;
+.btc-float-regime {
+  left: calc(40% + 188px);
+  bottom: 76px;
 }
 
 .btc-hero-data-strip {
@@ -1658,16 +1600,11 @@
 @media (max-width:1180px){
  .btc-cinematic-earth{right:105px;width:650px}
  .btc-cinematic-copy{width:44%}
- .btc-regime-panel{width:210px}
- .btc-float-hash{left:42%}
- .btc-float-price{right:24%}
 }
 @media (max-width:1023px){
  .btc-cinematic-hero{min-height:610px}
  .btc-cinematic-copy{width:60%;padding:30px 0 138px 28px}
  .btc-cinematic-earth{top:90px;right:-30px;width:590px;opacity:.7}
- .btc-regime-panel{top:auto;right:18px;bottom:72px}
- .btc-float-hash,.btc-float-price,.btc-float-sentiment{display:none}
  .btc-hero-data-strip{grid-template-columns:repeat(3,1fr)}
  .btc-hero-data-strip>div:nth-child(4),.btc-hero-data-strip>div:nth-child(5){display:none}
  .btc-workstation-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}
@@ -1682,9 +1619,6 @@
  .btc-cinematic-copy h1{font-size:clamp(2.45rem,13.5vw,3.75rem)}
  .btc-cinematic-copy p{max-width:92%;font-size:.8rem}
  .btc-cinematic-earth{top:275px;right:-125px;width:520px;opacity:.63}
- .btc-regime-panel{left:16px;right:16px;bottom:89px;width:auto;padding:13px 15px}
- .btc-regime-panel>p{display:none}
- .btc-regime-footer{margin:10px -15px -13px;padding:9px 15px 10px}
  .btc-hero-data-strip{grid-template-columns:1fr 1fr;min-height:72px}
  .btc-hero-data-strip>div{min-height:36px;padding:0 9px}
  .btc-hero-data-strip>div:nth-child(3){display:none}
@@ -1784,7 +1718,7 @@
 }
 .btc-news-brief-head h1{
   color:#eaf0f3;
-  font-family:'Sora','Inter',sans-serif;
+  font-family:'Inter',system-ui,sans-serif;
   font-size:1rem;
   font-weight:600;
   letter-spacing:-.025em;
@@ -1799,10 +1733,11 @@
   font-weight:700;
   letter-spacing:.13em;
 }
-.btc-news-list{display:grid}
+.btc-news-list{display:grid;grid-template-columns:minmax(0,1fr)}
 .btc-news-row{
   position:relative;
   display:block;
+  min-width:0;
   padding:8px 12px 8px 14px;
   border-bottom:1px solid rgba(91,132,149,.1);
   color:inherit;
@@ -1828,19 +1763,19 @@
   align-items:center;
   gap:8px;
   margin-bottom:3px;
-  color:#687681;
+  color:#75818b;
   font-family:'JetBrains Mono',ui-monospace,monospace;
   font-size:.47rem;
   letter-spacing:.045em;
   text-transform:uppercase;
 }
 .btc-news-meta b{color:#9aa5ac;font-weight:600}
-.btc-news-meta time{margin-left:auto;color:#55626c}
+.btc-news-meta time{margin-left:auto;color:#75818b}
 .btc-news-row strong{
   display:block;
   overflow:hidden;
   color:#cfd7dc;
-  font-family:'Sora','Inter',sans-serif;
+  font-family:'Inter',system-ui,sans-serif;
   font-size:.68rem;
   font-weight:550;
   line-height:1.35;
@@ -1866,44 +1801,22 @@
 }
 .btc-cinematic-price{margin-top:14px}
 .btc-cinematic-copy>small{font-family:'JetBrains Mono',ui-monospace,monospace}
-.btc-float-card,
-.btc-regime-panel{
+/* TradingView: o iframe do widget herda a moldura do card do gráfico e o
+   near-black do painel (backgroundColor/gridLineColor vão na própria config). */
+.btc-tv-host{
+  flex:1;
+  min-height:330px;
+  overflow:hidden;
+  border:1px solid rgba(72,122,140,.22);
   border-radius:10px;
-  background:rgba(5,14,19,.82);
-  border:1px solid rgba(77,138,158,.32);
-  box-shadow:0 14px 34px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.02);
-  backdrop-filter:blur(12px);
+  background:#050a0e;
 }
-
-.btc-float-card{
-  width:158px;
-  min-width:158px;
-  min-height:72px;
-  padding:13px 15px;
+.btc-tv-host .tradingview-widget-container,
+.btc-tv-host .tradingview-widget-container__widget{
+  height:100%;
+  width:100%;
 }
-.btc-float-card strong{
-  margin-top:5px;
-  font-family:'Sora','Inter',sans-serif;
-  font-size:.82rem;
-  font-weight:600;
-}
-.btc-float-card small{margin-top:4px}
-.btc-float-hash{top:28px;left:42%}
-.btc-float-price{top:28px;left:54.5%;right:auto}
-.btc-float-sentiment{left:54.5%;right:auto;bottom:76px}
-.btc-regime-panel{
-  top:28px;
-  right:22px;
-  width:224px;
-  padding:15px;
-}
-.btc-regime-panel>strong{
-  margin-top:9px;
-  font-family:'Sora','Inter',sans-serif;
-  font-size:1.24rem;
-}
-.btc-regime-panel>p{margin-top:12px}
-.btc-regime-footer{margin:14px -15px -15px;padding:10px 15px 11px}
+.btc-tv-host iframe{display:block;border:0}
 
 .btc-tradingview-link{
   color:#71808a;
@@ -1925,9 +1838,8 @@
 }
 @media (max-width:1180px){
   .btc-cinematic-copy{width:43%}
-  .btc-float-hash{left:43%}
-  .btc-float-price,.btc-float-sentiment{left:57%}
-  .btc-regime-panel{width:205px;right:16px}
+  .btc-float-hash,.btc-float-sentiment{left:44%}
+  .btc-float-price,.btc-float-regime{left:calc(44% + 188px)}
 }
 
 @media (max-width:1023px){
@@ -1938,15 +1850,11 @@
   .btc-cinematic-hero::before{
     background:linear-gradient(180deg,rgba(3,8,12,.9) 0%,rgba(3,8,12,.64) 42%,rgba(3,8,12,.88) 72%,#03080c 100%);
   }
-  .btc-float-card,.btc-regime-panel{display:block}
   .btc-float-card{width:calc(50% - 26px);min-width:0}
-  .btc-float-hash{left:18px;top:auto;bottom:151px}
-  .btc-float-price{left:auto;right:18px;top:auto;bottom:151px}
+  .btc-float-hash{left:18px;top:auto;bottom:172px}
+  .btc-float-price{left:auto;right:18px;top:auto;bottom:172px}
   .btc-float-sentiment{left:18px;right:auto;bottom:72px}
-  .btc-regime-panel{left:auto;right:18px;top:auto;bottom:72px;width:calc(50% - 26px);min-height:72px;padding:13px 15px}
-  .btc-regime-panel>p,.btc-regime-footer{display:none}
-  .btc-regime-panel>strong{font-size:.92rem;margin-top:5px}
-  .btc-regime-panel>em{font-size:.55rem}
+  .btc-float-regime{left:auto;right:18px;top:auto;bottom:72px}
 }
 
 @media (max-width:639px){
@@ -1959,11 +1867,12 @@
   .btc-cinematic-price{margin-top:12px}
   .btc-cinematic-earth{inset:250px -185px 130px -35px;opacity:.7}
   .btc-cinematic-earth img{object-position:68% center}
-  .btc-float-card{width:calc(50% - 20px);padding:11px 12px;min-height:66px}
-  .btc-float-hash{left:12px;bottom:149px}
-  .btc-float-price{right:12px;bottom:149px}
-  .btc-float-sentiment{left:12px;bottom:78px}
-  .btc-regime-panel{right:12px;bottom:78px;width:calc(50% - 20px);min-height:66px;padding:11px 12px}
+  .btc-float-card{width:calc(50% - 20px);padding:11px 12px;min-height:86px}
+  .btc-float-hash{left:12px;bottom:172px}
+  .btc-float-price{left:auto;right:12px;bottom:172px}
+  .btc-float-sentiment{left:12px;right:auto;bottom:78px}
+  .btc-float-regime{left:auto;right:12px;bottom:78px}
+  .btc-tv-host{min-height:300px}
   .btc-hero-data-strip{min-height:68px}
   .btc-news-meta{gap:5px}
   .btc-news-meta span{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

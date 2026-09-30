@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -12,13 +12,72 @@ import { SkeletonCard } from './Skeleton'
 import { fmtPrice, fmtPriceDetail } from '../lib/formatters'
 import type { OHLCV } from '../types'
 
-// Gráfico nativo (recharts) sobre /api/price/history. Substitui o widget
-// TradingView, que era bloqueado por adblockers (Brave Shields) e exigia
-// exceção no CSP. Zero dependência externa: funciona offline de terceiros.
+// Gráfico do painel em duas camadas:
+//
+// 1. Widget oficial do TradingView (external embedding, embed-widget-advanced-chart)
+//    como fonte primária — candles, ferramentas de desenho e timeframes reais.
+// 2. Histórico nativo da API (/api/price/history) como rede de segurança: o
+//    widget era dispensado antes porque adblockers (Brave Shields) e CSP
+//    bloqueiam s3.tradingview.com. Se o script não carregar, o painel mostra o
+//    gráfico da própria API em vez de um card vazio.
 const API_BASE = import.meta.env.VITE_API_URL || ''
+const TRADINGVIEW_SCRIPT = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
+const TRADINGVIEW_SETTLE_MS = 1500
+const TRADINGVIEW_TIMEOUT_MS = 9000
 
 const UP = '#3fb950'
 const DOWN = '#f85149'
+
+interface TradingViewConfig {
+  autosize: boolean
+  symbol: string
+  interval: string
+  timezone: string
+  theme: 'dark' | 'light'
+  style: string
+  locale: string
+  enable_publishing: boolean
+  allow_symbol_change: boolean
+  hide_top_toolbar: boolean
+  hide_legend: boolean
+  save_image: boolean
+  calendar: boolean
+  hide_volume: boolean
+  support_host: string
+  withdateranges: boolean
+  details: boolean
+  backgroundColor: string
+  gridLineColor: string
+  fontColor: string
+  toolbar_bg: string
+}
+
+// Config do widget. `container_id` não entra: no external embedding o script lê
+// o próprio conteúdo da tag <script> e injeta o iframe no elemento pai.
+const TRADINGVIEW_CONFIG: TradingViewConfig = {
+  autosize: true,
+  symbol: 'COINBASE:BTCUSD',
+  interval: 'D',
+  timezone: 'Etc/UTC',
+  theme: 'dark',
+  style: '1',
+  locale: 'br',
+  enable_publishing: false,
+  allow_symbol_change: false,
+  hide_top_toolbar: false,
+  hide_legend: false,
+  save_image: false,
+  calendar: false,
+  hide_volume: false,
+  support_host: 'https://www.tradingview.com',
+  withdateranges: true,
+  details: false,
+  // Sincroniza o widget com o near-black do painel em vez do cinza padrão.
+  backgroundColor: 'rgba(5, 10, 14, 1)',
+  gridLineColor: 'rgba(72, 122, 140, 0.16)',
+  fontColor: '#8b98a3',
+  toolbar_bg: 'rgba(4, 10, 14, 1)',
+}
 
 interface Point {
   t: string
@@ -53,7 +112,62 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
   )
 }
 
-export function BtcChart() {
+/** Widget oficial do TradingView. Chama onUnavailable quando o script é
+ *  bloqueado (adblock/CSP) ou não monta o iframe a tempo. */
+function TradingViewWidget({ onUnavailable }: { onUnavailable: () => void }) {
+  const hostRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    let cancelled = false
+    const fail = () => {
+      if (!cancelled) onUnavailable()
+    }
+
+    // O widget é montado uma única vez por host. O StrictMode do React roda o
+    // efeito duas vezes em dev: recriar o container destruía o iframe que o
+    // script do TradingView ainda estava inicializando ("contentWindow is not
+    // available"), então a montagem é idempotente e a limpeza não mexe no DOM.
+    let container = host.querySelector<HTMLDivElement>('.tradingview-widget-container')
+    if (!container) {
+      container = document.createElement('div')
+      container.className = 'tradingview-widget-container'
+      const widget = document.createElement('div')
+      widget.className = 'tradingview-widget-container__widget'
+      container.append(widget)
+
+      const script = document.createElement('script')
+      script.type = 'text/javascript'
+      script.src = TRADINGVIEW_SCRIPT
+      script.async = true
+      // O external embedding lê a configuração do texto da própria tag.
+      script.text = JSON.stringify(TRADINGVIEW_CONFIG)
+      script.addEventListener('error', fail)
+      script.addEventListener('load', () => {
+        window.setTimeout(() => {
+          if (!host.querySelector('iframe')) fail()
+        }, TRADINGVIEW_SETTLE_MS)
+      })
+      container.append(script)
+      host.append(container)
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (!host.querySelector('iframe')) fail()
+    }, TRADINGVIEW_TIMEOUT_MS)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [onUnavailable])
+
+  return <div className="btc-tv-host" ref={hostRef} />
+}
+
+/** Histórico nativo da API: fallback do widget e retrato de 90 dias do mercado. */
+function LocalHistoryChart() {
   const [data, setData] = useState<Point[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -109,17 +223,14 @@ export function BtcChart() {
 
   if (error && !data) {
     return (
-      <div className="card p-3 sm:p-5 h-full flex flex-col">
-        <h3 className="text-dark-text-primary font-semibold text-sm mb-3">BTC/USD Chart</h3>
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-dark-text-muted">
-          <span>Histórico indisponível ({error})</span>
-          <button
-            onClick={() => setAttempt((n) => n + 1)}
-            className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:opacity-90"
-          >
-            Tentar de novo
-          </button>
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm text-dark-text-muted">
+        <span>Histórico indisponível ({error})</span>
+        <button
+          onClick={() => setAttempt((n) => n + 1)}
+          className="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:opacity-90"
+        >
+          Tentar de novo
+        </button>
       </div>
     )
   }
@@ -136,21 +247,7 @@ export function BtcChart() {
   const pad = (max - min) * 0.08 || 1
 
   return (
-    <div className="card p-3 sm:p-5 h-full flex flex-col">
-      <div className="flex items-baseline justify-between gap-3 mb-3">
-        <h3 className="text-dark-text-primary font-semibold text-sm">BTC/USD Chart</h3>
-        <div className="flex items-center gap-3">
-          <span className="text-dark-text-dim text-xs">90 dias · {last.label}</span>
-          <a
-            className="btc-tradingview-link"
-            href="https://www.tradingview.com/chart/?symbol=COINBASE%3ABTCUSD"
-            target="_blank"
-            rel="noreferrer"
-          >
-            TradingView ↗
-          </a>
-        </div>
-      </div>
+    <>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -190,6 +287,38 @@ export function BtcChart() {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      <div className="mt-2 font-mono text-[10px] text-dark-text-dim">
+        90 dias · {last.label} · histórico da API
+      </div>
+    </>
+  )
+}
+
+export function BtcChart() {
+  const [widgetUnavailable, setWidgetUnavailable] = useState(false)
+  const handleUnavailable = useCallback(() => setWidgetUnavailable(true), [])
+
+  return (
+    <div className="card p-3 sm:p-5 h-full flex flex-col">
+      <div className="flex items-baseline justify-between gap-3 mb-3">
+        <h3 className="text-dark-text-primary font-semibold text-sm">
+          {widgetUnavailable ? 'BTC/USD Chart' : 'BTC/USD · TradingView'}
+        </h3>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-xs text-dark-text-dim sm:inline">
+            {widgetUnavailable ? '90 dias · histórico da API' : 'COINBASE:BTCUSD · tempo real'}
+          </span>
+          <a
+            className="btc-tradingview-link"
+            href="https://www.tradingview.com/chart/?symbol=COINBASE%3ABTCUSD"
+            target="_blank"
+            rel="noreferrer"
+          >
+            TradingView ↗
+          </a>
+        </div>
+      </div>
+      {widgetUnavailable ? <LocalHistoryChart /> : <TradingViewWidget onUnavailable={handleUnavailable} />}
     </div>
   )
 }

@@ -1,0 +1,92 @@
+## _headers do Cloudflare Pages da arvore publicada
+## (raiz = landing estatica, /painel/ = SPA do painel).
+##
+## FONTE DA VERDADE, rastreada em git. Nao editar pages-dist/_headers: a arvore
+## pages-dist/ e gitignored, e um arquivo mantido a mao la dentro se perde na
+## proxima regeneracao -- foi assim que a liberacao do TradingView no /painel/
+## ficou pendurada em um arquivo fora de controle de versao.
+##
+## Fluxo de geracao (o Vite copia publicDir para a raiz do build):
+##   frontend/public/_headers  --vite build-->  frontend/dist/_headers
+##   frontend/dist/_headers    --deploy-pages.ps1-->  frontend/pages-dist/_headers
+##
+## _headers casa com o caminho PEDIDO (nao com o arquivo servido): sem o
+## Content-Type declarado na rota, o browser baixa o HTML em vez de renderizar.
+
+## Raiz: landing estatica
+/
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://btc-radar.prospects-intel.workers.dev; font-src 'self' https://fonts.gstatic.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+## Painel: SPA servido por /painel/shell (alvo sem extensao do _redirects).
+## O MIME tem de ser declarado na ROTA: _headers casa com o caminho pedido, e
+## sem isto o browser baixa o HTML em vez de renderizar.
+##
+## TradingView -- o painel usa o widget oficial (external embedding,
+## s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js). O que
+## o widget realmente precisa, medido no bundle do embed:
+##   script-src: o embed em si vem de https://s3.tradingview.com (o painel so
+##               injeta esse <script>; nada mais de TradingView e executado).
+##   frame-src:  o iframe e criado em ${widgetHost}/embed-widget/advanced-chart/,
+##               com widgetHost = https://www.tradingview-widget.com. Se esse
+##               frame e bloqueado, o proprio embed reescreve o src para
+##               https://s.tradingview.com e loga "update your CSP rules to
+##               allow the tradingview-widget.com origin for frame-src" -- por
+##               isso os dois hosts entram: sem s.tradingview.com a propria
+##               rede de seguranca do widget morre na CSP.
+##   connect-src: nenhum host de TradingView. O embed nao faz fetch/XHR/
+##               WebSocket/EventSource/import (verificado no bundle baixado); os
+##               dados chegam pelo documento do iframe, sob a CSP do proprio
+##               TradingView. Nao liberar host de TradingView aqui.
+##
+## Baseline do painel segue restritivo: default-src 'none', base-uri 'none',
+## frame-ancestors 'none', sem unsafe-eval e sem curinga de host.
+/painel/
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://s3.tradingview.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://btc-radar.prospects-intel.workers.dev; font-src 'self' https://fonts.gstatic.com; frame-src https://www.tradingview-widget.com https://s.tradingview.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+  Content-Type: text/html; charset=utf-8
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+/painel/signals
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/briefing
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/backtest
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/alerts
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/onchain
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/portfolio
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/trades
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/settings
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+## Assets: hash no nome, cache longo. Sem Content-Type (o arquivo ja define).
+/assets/*
+  Cache-Control: public, max-age=86400
+
+/painel/assets/*
+  Cache-Control: public, max-age=86400, immutable

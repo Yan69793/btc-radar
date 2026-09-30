@@ -1,0 +1,21 @@
+# SPA do painel — rotas explicitas.
+#
+# Por que nao usar catch-all `/painel/*`:
+# 1) O alvo nao pode terminar em .html. O Pages responde 308 "clean URL" em
+#    /painel/index.html -> /painel/ e /painel/shell.html -> /painel/shell, entao
+#    o rewrite nunca entrega corpo, o pedido cai no fallback da raiz (a landing)
+#    e o auth.js dela, ao ver o token, redireciona para /painel: o link direto
+#    nunca saia do Dashboard.
+# 2) `_redirects` vence asset estatico. Com catch-all, /painel/assets/*.js e
+#    *.png passaram a devolver o HTML do shell (application/octet-stream) e o
+#    painel inteiro quebrou. Rotas explicitas deixam os assets em paz.
+#
+# O alvo sem extensao tem o MIME declarado no _headers.
+/painel/signals    /painel/shell  200
+/painel/briefing   /painel/shell  200
+/painel/backtest   /painel/shell  200
+/painel/alerts     /painel/shell  200
+/painel/onchain    /painel/shell  200
+/painel/portfolio  /painel/shell  200
+/painel/trades     /painel/shell  200
+/painel/settings   /painel/shell  200

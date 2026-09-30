@@ -7,8 +7,21 @@
 # Nao use `wrangler pages deploy dist`: isso publica o build cru na raiz e
 # derruba a landing, alem de perder _headers, _redirects e painel/shell.
 #
+# O _headers e o _redirects NAO sao mantidos a mao dentro de pages-dist (que e
+# gitignored): eles vem de frontend/public/, copiados pelo Vite para dist/ no
+# build. Este script instala dist/_headers e dist/_redirects em pages-dist/ em
+# toda execucao, para o CSP do /painel/ (liberacao do TradingView) e as rotas
+# explicitas do SPA sobreviverem a regeneracao da arvore.
+#
+# -SkipDeploy: faz build + sincronizacao de pages-dist sem publicar. Use para
+# validar o artefato gerado (smoke/preview local) sem tocar a producao.
+#
 # ASCII only: script chamado por humano, mas o pre-commit reprova non-ASCII sem
 # BOM, e nao vale a pena depender de BOM aqui.
+param(
+    [switch]$SkipDeploy
+)
+
 $ErrorActionPreference = 'Continue'
 $front = Split-Path -Parent $PSScriptRoot
 $pd    = Join-Path $front 'pages-dist'
@@ -37,6 +50,27 @@ Copy-Item (Join-Path $dist 'favicon.svg') (Join-Path $pp 'favicon.svg') -Force
 $ppAssets = Join-Path $pp 'assets'
 if (Test-Path $ppAssets) { Remove-Item $ppAssets -Recurse -Force }
 Copy-Item (Join-Path $dist 'assets') $ppAssets -Recurse -Force
+
+Write-Host "== sincronizando _headers e _redirects ==" -ForegroundColor Cyan
+# Fontes da verdade rastreadas: frontend/public/_headers e frontend/public/_redirects,
+# que o Vite copia para dist/ no build. Sem estas copias, pages-dist volta a ter
+# arquivos nao versionados e o CSP do /painel/ (TradingView) e as rotas explicitas
+# do SPA se perdem na proxima regeneracao.
+foreach ($nome in @('_headers', '_redirects')) {
+    $src = Join-Path $dist $nome
+    if (-not (Test-Path $src)) {
+        Pop-Location
+        Write-Host "dist/$nome ausente: falta frontend/public/$nome no fonte." -ForegroundColor Red
+        exit 1
+    }
+    Copy-Item $src (Join-Path $pd $nome) -Force
+}
+
+if ($SkipDeploy) {
+    Pop-Location
+    Write-Host "== -SkipDeploy: pages-dist sincronizado, nada publicado ==" -ForegroundColor Yellow
+    exit 0
+}
 
 Write-Host "== publicando ==" -ForegroundColor Cyan
 npx wrangler pages deploy $pd --project-name btc-radar

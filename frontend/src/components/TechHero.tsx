@@ -73,6 +73,16 @@ export function TechHero({ price, fearGreed, loading = false }: Props) {
   const regime = scenarios?.current_regime
   const consensus = signals?.consensus
   const positive = (price?.change_24h ?? 0) >= 0
+  const regimeTone = regime?.trend === 'bull' ? 'positive' : regime?.trend === 'bear' ? 'negative' : ''
+  // A leitura narrativa do regime saiu do corpo do card (os quatro cards do
+  // hero passaram a ter a mesma anatomia de quatro linhas) e virou descrição
+  // do próprio card, para o texto continuar no documento.
+  const regimeNote =
+    regime?.trend === 'bull'
+      ? 'Momentum e estrutura favorecem continuidade de alta, com risco condicionado pela volatilidade.'
+      : regime?.trend === 'bear'
+        ? 'Estrutura de preço pede cautela e preservação de capital enquanto o regime seguir contracionista.'
+        : 'Mercado sem tendência dominante. Convicção deve vir da convergência entre sinais, derivativos e macro.'
 
   return (
     <section className="btc-cinematic-hero" aria-labelledby="btc-cinematic-title">
@@ -126,41 +136,36 @@ export function TechHero({ price, fearGreed, loading = false }: Props) {
       <div className="btc-float-card btc-float-hash">
         <span>HASH RATE</span>
         <strong>{compactHashRate(onchain?.hash_rate)}</strong>
-        <small>{onchain?.block_height ? `bloco #${onchain.block_height.toLocaleString('pt-BR')}` : 'mempool.space'}</small>
+        <small>{onchain?.block_height ? `bloco #${onchain.block_height.toLocaleString('pt-BR')}` : 'aguardando rede'}</small>
+        <small className="btc-float-foot">mempool.space</small>
       </div>
 
       <div className="btc-float-card btc-float-price">
         <span>PREÇO</span>
         <strong>{price ? fmtPrice(price.price) : '—'}</strong>
         <small className={positive ? 'positive' : 'negative'}>{price ? fmtPct(price.change_24h) : '—'} em 24h</small>
+        <small className="btc-float-foot">OKX · tempo real</small>
       </div>
 
       <div className="btc-float-card btc-float-sentiment">
         <span>SENTIMENTO</span>
         <strong>{fearGreed?.classification ?? '—'}</strong>
-        <small>{fearGreed ? `${fearGreed.value}/100` : 'Alternative.me'}</small>
+        <small>{fearGreed ? `${fearGreed.value}/100` : '—'}</small>
+        <small className="btc-float-foot">Alternative.me</small>
       </div>
 
-      <aside className="btc-regime-panel">
-        <div className="btc-regime-head"><i /> REGIME ATUAL</div>
+      <div className="btc-float-card btc-float-regime" title={regimeNote}>
+        <span>REGIME ATUAL</span>
         <strong>{regimeLabel(regime?.key)}</strong>
-        <em>
+        <small className={regimeTone}>
           30d {regime?.return_30d_pct == null ? '—' : fmtPct(regime.return_30d_pct)}
           {' · '}vol {regime?.realized_vol_30d_pct == null ? '—' : `${regime.realized_vol_30d_pct.toFixed(1)}%`}
-        </em>
-        <p>
-          {regime?.trend === 'bull'
-            ? 'Momentum e estrutura favorecem continuidade de alta, com risco condicionado pela volatilidade.'
-            : regime?.trend === 'bear'
-              ? 'Estrutura de preço pede cautela e preservação de capital enquanto o regime seguir contracionista.'
-              : 'Mercado sem tendência dominante. Convicção deve vir da convergência entre sinais, derivativos e macro.'}
-        </p>
-        <div className="btc-regime-footer">
-          <span>CONSENSO</span>
-          <b>{consensus?.verdict ?? 'AGUARDAR'}</b>
-          <small>{consensus?.conviction == null ? '—' : `${consensus.conviction.toFixed(1)}/10`}</small>
-        </div>
-      </aside>
+        </small>
+        <small className="btc-float-foot">
+          CONSENSO {consensus?.verdict ?? 'AGUARDAR'}
+          {consensus?.conviction == null ? '' : ` · ${consensus.conviction.toFixed(1)}/10`}
+        </small>
+      </div>
 
       <div className="btc-hero-data-strip">
         <div><span>AO VIVO</span><strong>{price ? fmtPrice(price.price) : '—'}</strong><em>{price ? fmtPct(price.change_24h) : '—'}</em></div>

@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 // smoke-landing.mjs — smoke local da landing publicada.
 // Sobe um http server de mentira que replica o comportamento do Cloudflare
-// Pages para esta arvore (assets reais primeiro, _redirects para /painel/*,
-// _headers aplicados por caminho) e valida de ponta a ponta:
+// Pages para esta arvore (assets reais primeiro, _redirects para as rotas do
+// painel, _headers aplicados por caminho) e valida de ponta a ponta:
 //   1. Cada asset publicado: HTTP 200 + Content-Type do formato + magic bytes
 //      + tamanho minimo + corpo nao-HTML.
 //   2. Raiz: HTML com a CSP restritiva (default-src 'none', connect-src com a
 //      origem da API).
-//   3. /painel/*: nao herda a CSP da raiz, SPA intacta.
-//   4. Rota de imagem inexistente: nunca 200 com HTML no lugar.
+//   3. /painel/*: CSP propria (nao herda a da raiz) liberando exatamente o
+//      TradingView exigido pelo widget, com o baseline restritivo intacto.
+//   4. Rotas do SPA: _redirects presente, as 8 rotas explicitas para
+//      /painel/shell com status 200, sem catch-all /painel/* (que engole os
+//      assets e quebra o clean URL do Pages) e sem alvo .html, alem do corpo
+//      servido ser o do painel (nunca a landing).
+//   5. Rota de imagem inexistente: nunca 200 com HTML no lugar.
 //
 // Uso: node landing/scripts/smoke-landing.mjs [saida]
 
@@ -63,6 +68,25 @@ const headersPara = (path) => {
   return out;
 };
 
+/* ── _redirects: linhas "de para status" (comentarios com #) ── */
+function parseRedirects() {
+  const arq = join(SAIDA, '_redirects');
+  if (!existsSync(arq)) return [];
+  const regras = [];
+  for (const linha of readFileSync(arq, 'utf8').split(/\r?\n/)) {
+    const limpa = linha.trim();
+    if (!limpa || limpa.startsWith('#')) continue;
+    const [de, para, status] = limpa.split(/\s+/);
+    regras.push({ de, para, status: Number(status) || 302 });
+  }
+  return regras;
+}
+const REGRAS = parseRedirects();
+const ROTAS_SPA = [
+  '/painel/signals', '/painel/briefing', '/painel/backtest', '/painel/alerts',
+  '/painel/onchain', '/painel/portfolio', '/painel/trades', '/painel/settings',
+];
+
 /* ── Servidor replica o Pages (asset real primeiro, redirects depois) ── */
 const arquivoDe = (pathname) => {
   const rel = pathname.replace(/^\/+/, '');
@@ -74,10 +98,15 @@ const arquivoDe = (pathname) => {
     const idx = join(p, 'index.html');
     return existsSync(idx) ? idx : null;
   }
-  // SPA: /painel e /painel/* caem no index do painel (regra do _redirects).
-  if (pathname === '/painel' || pathname.startsWith('/painel/')) {
-    const pi = join(SAIDA, 'painel', 'index.html');
-    return existsSync(pi) ? pi : null;
+  // Rewrite do _redirects (status 200) para as rotas do SPA: o asset real ja foi
+  // tentado acima, na mesma ordem do Pages. Sem catch-all, rota fora da lista
+  // nao resolve -- e isso e proposital.
+  const regra = REGRAS.find((r) =>
+    r.status === 200 &&
+    (r.de.endsWith('/*') ? pathname.startsWith(r.de.slice(0, -1)) : pathname === r.de));
+  if (regra) {
+    const alvo = resolve(SAIDA, regra.para.replace(/^\/+/, ''));
+    if (alvo.startsWith(SAIDA) && existsSync(alvo) && statSync(alvo).isFile()) return alvo;
   }
   return null;
 };
@@ -174,19 +203,75 @@ server.listen(0, '127.0.0.1', async () => {
     if (/noindex|nofollow/i.test(robots)) falha(`raiz: X-Robots-Tag bloqueia indexacao (${robots})`);
     ok(`raiz CSP restritiva + headers de seguranca (${raiz.headers.get('content-type')})`);
 
+    /* /painel/ tem CSP propria (nao herda a da raiz) e ela precisa liberar o
+       TradingView exigido pelo widget Advanced Chart -- nem mais, nem menos.
+       Guarda de regressao do CSP que vive em frontend/public/_headers. */
     const painel = await fetch(`${base}/painel/`);
     const painelCsp = painel.headers.get('content-security-policy') || '';
     if (painel.status !== 200) falha('/painel/: status nao-200');
-    if (painelCsp.includes("default-src 'none'")) falha('/painel/: herda a CSP restritiva da raiz');
-    else ok('/painel/: sem a CSP da raiz (SPA intacta)');
+    if (!painelCsp) falha('/painel/: sem Content-Security-Policy propria');
+    if (!painelCsp.includes("default-src 'none'")) falha("/painel/: CSP sem default-src 'none'");
+    if (!painelCsp.includes("script-src 'self' https://s3.tradingview.com")) {
+      falha('/painel/: CSP nao libera o script do TradingView (s3.tradingview.com)');
+    }
+    if (!painelCsp.includes('frame-src https://www.tradingview-widget.com https://s.tradingview.com')) {
+      falha('/painel/: CSP nao libera os frames do widget do TradingView');
+    }
+    if (/tradingview/.test(/connect-src ([^;]*)/.exec(painelCsp)?.[1] || '')) {
+      falha('/painel/: connect-src com host de TradingView (o embed nao faz XHR)');
+    }
+    if (painelCsp.includes("'unsafe-eval'")) falha("/painel/: CSP com 'unsafe-eval'");
+    if (/\*/.test(painelCsp)) falha('/painel/: CSP com curinga de host');
+    else if (painelCsp) ok('/painel/: CSP propria com o TradingView minimo e baseline restritivo');
 
-    /* 3. Cache-Control nos assets */
+    /* 4. Rotas do SPA: _redirects rastreado, 8 rotas explicitas para
+       /painel/shell, sem catch-all amplo e sem alvo .html. Guarda de regressao
+       do _redirects que vive em frontend/public/_redirects. */
+    console.log('Rotas do SPA (_redirects):');
+    if (!existsSync(join(SAIDA, '_redirects'))) falha('_redirects ausente na arvore publicada');
+    // Catch-all amplo (ex: /painel/*) engole /painel/assets/* e quebra o painel.
+    const amplas = REGRAS.filter((r) => r.de.endsWith('/*') && ROTAS_SPA[0].startsWith(r.de.slice(0, -1)));
+    if (amplas.length) falha(`_redirects com catch-all amplo: ${amplas.map((r) => r.de).join(', ')}`);
+    for (const rota of ROTAS_SPA) {
+      const antes = falhas.length;
+      const regra = REGRAS.find((r) => r.de === rota);
+      if (!regra) falha(`_redirects: ${rota} sem regra`);
+      else {
+        if (regra.para !== '/painel/shell') falha(`_redirects: ${rota} -> ${regra.para} (esperado /painel/shell)`);
+        if (regra.status !== 200) falha(`_redirects: ${rota} status ${regra.status} (esperado 200)`);
+        if (regra.para.endsWith('.html')) falha(`_redirects: ${rota} -> alvo .html (Pages responde 308 e nao entrega corpo)`);
+      }
+      const res = await fetch(`${base}${rota}`);
+      const ct = res.headers.get('content-type') || '';
+      const corpo = await res.text();
+      if (res.status !== 200) falha(`${rota}: status ${res.status}`);
+      if (!ct.startsWith('text/html')) falha(`${rota}: Content-Type ${ct}`);
+      if (corpo.includes('landing.css')) falha(`${rota}: serviu a landing no lugar do painel`);
+      if (!corpo.includes('/painel/assets/')) falha(`${rota}: corpo sem asset do painel`);
+      if (falhas.length === antes) ok(`${rota} -> ${res.status}, ${ct}, SPA do painel`);
+    }
+    // Asset do painel nao pode ser engolido pelas regras do _redirects.
+    const dirAssets = join(SAIDA, 'painel', 'assets');
+    const js = existsSync(dirAssets) ? readdirSync(dirAssets).find((f) => f.endsWith('.js')) : null;
+    if (!js) falha('painel/assets: nenhum .js publicado');
+    else {
+      const res = await fetch(`${base}/painel/assets/${js}`);
+      const ct = res.headers.get('content-type') || '';
+      const corpo = await res.text();
+      if (res.status !== 200 || !ct.startsWith('text/javascript')) {
+        falha(`/painel/assets/${js}: ${res.status}, ${ct}`);
+      } else if (corpo.trimStart().toLowerCase().startsWith('<')) {
+        falha(`/painel/assets/${js}: corpo HTML no lugar do JS`);
+      } else ok(`/painel/assets/${js} -> ${res.status}, ${ct}, nao-HTML`);
+    }
+
+    /* 5. Cache-Control nos assets */
     const assetRes = await fetch(`${base}/assets/bg-desktop.webp`);
     const cc = assetRes.headers.get('cache-control') || '';
     if (!cc.includes('max-age=86400')) falha('assets: Cache-Control sem max-age=86400');
     else ok('assets: Cache-Control public, max-age=86400');
 
-    /* 4. Rota de imagem inexistente nunca devolve HTML 200 */
+    /* 6. Rota de imagem inexistente nunca devolve HTML 200 */
     console.log('Rota inexistente:');
     const fake = await fetch(`${base}/assets/nao-existe.webp`);
     if (fake.status === 200) falha('imagem inexistente respondeu 200 (fallback HTML?!)');

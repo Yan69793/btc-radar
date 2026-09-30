@@ -56,9 +56,11 @@ export default {
                 },
             },
             fontFamily: {
+                // Identidade tipográfica única: Inter em marca, título e corpo
+                // (mesma família da landing). Mono só para dado técnico.
                 sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
                 mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
-                display: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
+                display: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
             },
             borderRadius: {
                 DEFAULT: '6px',
