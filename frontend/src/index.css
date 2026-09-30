@@ -1529,9 +1529,10 @@
   }
 
   .btc-cinematic-kicker {
-    margin: 0 2px 2px;
+    margin: 4px auto 2px;
     font-size: .54rem;
-    align-self: flex-start;
+    align-self: center;
+    text-align: center;
   }
 
   .btc-cinematic-copy {
