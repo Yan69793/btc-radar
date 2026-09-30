@@ -1525,12 +1525,17 @@
   /* A arte-fonte é 16:9 e o globo está deslocado para a direita. No portrait,
      o crop quadrado precisa preservar essa área, sem alterar o landscape. */
   .btc-cinematic-earth img {
-    object-position: 78% center;
+    object-position: 90% center;
   }
 
   .btc-cinematic-kicker {
-    margin: 0 2px;
+    margin: 0 2px 2px;
     font-size: .54rem;
+    align-self: flex-start;
+  }
+
+  .btc-cinematic-copy {
+    gap: 0;
   }
 
   .btc-cinematic-price {
