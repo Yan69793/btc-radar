@@ -73,7 +73,7 @@ if ($SkipDeploy) {
 }
 
 Write-Host "== publicando ==" -ForegroundColor Cyan
-npx wrangler pages deploy $pd --project-name btc-radar
+npx wrangler pages deploy $pd --project-name btc-radar --branch main
 $code = $LASTEXITCODE
 Pop-Location
 
