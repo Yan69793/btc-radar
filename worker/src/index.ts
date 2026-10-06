@@ -23,6 +23,8 @@ import { authRoutes } from "./routes/auth";
 import { marketRoutes } from "./routes/market";
 import { macroContextRoutes } from "./routes/macro-context";
 import { scenarioRoutes } from "./routes/scenarios";
+import { signalHistoryRoutes } from "./routes/signal-history";
+import { aureusTrackRecordRoutes } from "./routes/aureus-track-record";
 import { handleScheduled } from "./cron";
 import { writeGuard } from "./lib/write-guard";
 
@@ -100,6 +102,10 @@ app.get("/api/health", async (c) => {
 app.route("/api/price", priceRoutes);
 app.route("/api/sentiment", sentimentRoutes);
 app.route("/api/news", newsRoutes);
+// Histórico de sinais ANTES de /api/signals: a rota estática /api/signals/history
+// precisa vencer o parâmetro /api/signals/:strategy. Com a ordem invertida, o
+// Hono sombreava o histórico pela rota de estratégia (retornava 500).
+app.route("/api/signals/history", signalHistoryRoutes);
 app.route("/api/signals", signalRoutes);
 app.route("/api/onchain", onchainRoutes);
 app.route("/api/trades", tradeRoutes);
@@ -113,6 +119,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/market", marketRoutes);
 app.route("/api/macro-context", macroContextRoutes);
 app.route("/api/scenarios", scenarioRoutes);
+app.route("/api/aureus-track-record", aureusTrackRecordRoutes);
 
 // Cron handler — coleta batch programada
 export default {

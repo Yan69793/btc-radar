@@ -1,0 +1,4 @@
+import { describe, expect, it } from 'vitest'
+import { computeTrackRecord, type TrackSnapshotRow } from '../src/routes/aureus-track-record'
+const row=(timestamp:string,nav:number,exposure=.5):TrackSnapshotRow=>({timestamp,nav,cash:nav*(1-exposure),position_value:nav*exposure,exposure,quantity:.01,realized_pnl:0,unrealized_pnl:0,total_fees:1,cycle:1})
+describe('aureus track record',()=>{it('calcula retorno e drawdown',()=>{const r=computeTrackRecord([row('2026-01-01T00:00:00Z',100),row('2026-01-02T00:00:00Z',120),row('2026-01-03T00:00:00Z',90),row('2026-01-04T00:00:00Z',110)]);expect(r.available).toBe(true);expect(r.metrics.cumulative_return_pct).toBeCloseTo(10,8);expect(r.metrics.max_drawdown_pct).toBeCloseTo(-25,8);expect(r.metrics.exposure_pct).toBeCloseTo(50,8)});it('fica indisponivel sem snapshots',()=>{const r=computeTrackRecord([]);expect(r.available).toBe(false);expect(r.series).toEqual([])})})

@@ -1,7 +1,7 @@
-﻿// BTC Radar â€” Cron handler para coleta batch
+// BTC Radar â€” Cron handler para coleta batch
 // Executado pelo trigger no wrangler.toml: ["0 */1 * * *"]
 
-import type { Env } from "./types";
+import type { Env, FearGreedData } from "./types";
 import { fetchOHLCVWithFallback, crossCheckOHLCV } from "./lib/ohlcv-providers";
 import { fetchFearGreedToday } from "./lib/alternativeme";
 import { fetchOnChainSnapshot } from "./lib/mempool";
@@ -213,6 +213,106 @@ export async function handleScheduled(
       console.error(`[cron] Briefing: ${msg}`);
       errors.push(`Briefing: ${msg}`);
     }
+  }
+
+  // â”€â”€â”€ Persistência do histórico prospectivo de sinais (Aureus, Fase 1) â”€â”€â”€
+  // 1) Gera e salva sinais direcionais com metadados completos.
+  //    Regra 7: não reabre oportunidades iguais enquanto abertas.
+  // 2) Resolve os pendentes com a série de preços acumulada no D1.
+  // Isso roda logo após a coleta de preços (já aconteceu acima) e ANTES do push
+  // WhatsApp, para garantir que o sinal novo já esteja gravado quando enviado.
+  try {
+    const { generateSignals } = await import("./lib/signal-engine");
+    const { enrichSignalForPersist, persistSignals, resolvePendingSignals } = await import("./signal-history-service");
+    const { fetchStoredOHLCV } = await import("./routes/signals");
+
+    const tfs: Array<"short" | "medium" | "long"> = ["short", "medium", "long"];
+    const now = new Date().toISOString();
+    const allSignals: ReturnType<typeof enrichSignalForPersist>[] = [];
+    const rawSignals: import("./types").SignalDocument[] = [];
+    let portfolioCandle: import("./lib/aureus-portfolio").MarketCandle | null = null;
+    // Fear & Greed real do KV (coletado a cada 6h pelo proprio cron). Ausente -> null,
+    // e a estrategia fear_greed_contrarian e simplesmente omitida (nunca gera sinal com dado fabricado).
+    const fgKv = (await env.KV.get("sentiment:fear-greed", "json")) as FearGreedData | null;
+
+    for (const tf of tfs) {
+      try {
+        const ohlcv = await fetchStoredOHLCV(env.DB, "1h", 400);
+        // fetchStoredOHLCV devolve ASC (mais antigo primeiro). Usar slice(-200) pega os
+        // 200 candles MAIS RECENTES; slice(0, 200) pegaria os mais antigos e o preco
+        // atual (ultimo elemento) ficaria no passado.
+        const recent = ohlcv.slice(-200);
+        const lastStoredCandle = recent[recent.length - 1];
+        const s = generateSignals({ candles: recent, fearGreed: fgKv, timeframe: tf });
+        rawSignals.push(...s);
+        if (lastStoredCandle) {
+          portfolioCandle = {
+            timestamp: lastStoredCandle.timestamp,
+            open: lastStoredCandle.open,
+            high: lastStoredCandle.high,
+            low: lastStoredCandle.low,
+            close: lastStoredCandle.close,
+          };
+        }
+        // Proveni?ncia: fonte/granularidade reais do candle entregue ao motor.
+        for (const doc of s) {
+          allSignals.push(enrichSignalForPersist({
+            signal: doc,
+            priceSource: lastStoredCandle?.source ?? "unknown",
+            priceInterval: lastStoredCandle?.interval ?? "1h",
+            now,
+          }));
+        }
+      } catch (innerErr) {
+        const msg = innerErr instanceof Error ? innerErr.message : "erro";
+        errors.push(`Histórico sinais tf=${tf}: ${msg}`);
+      }
+    }
+
+    const persistResult = await persistSignals(env.DB, allSignals);
+    results.push(
+      `Histórico sinais: ${persistResult.inserted} inserido(s), ` +
+      `${persistResult.skipped_same_direction_open} pulado(s) (mesma direção aberta), ` +
+      `${persistResult.skipped_flat_or_no_entry} flat/sem-entry`,
+    );
+
+    const res = await resolvePendingSignals(env.DB);
+    results.push(
+      `Resolução sinais: ${res.resolved} 100% fechado(s), ${res.with_gap} com gap, ` +
+      `${res.processed} processado(s), erros=${res.errors.length}`,
+    );
+    if (res.errors.length) {
+      errors.push(...res.errors.slice(0, 10).map(e => "Resolução: " + e));
+    }
+
+    // Portfolio Engine Aureus: uma unica posicao agregada em BTC, controlada pelo consenso.
+    // Idempotencia: um ciclo por candle timestamp. Reexecucao do cron nao reaplica exposicao.
+    if (portfolioCandle && rawSignals.length > 0) {
+      const { computeConsensus } = await import("./lib/consensus");
+      const { persistAureusPortfolioCycle } = await import("./aureus-portfolio-service");
+      const consensus = computeConsensus(rawSignals);
+      if (consensus) {
+        const portfolioRun = await persistAureusPortfolioCycle({
+          DB: env.DB,
+          consensus,
+          signals: rawSignals,
+          candle: portfolioCandle,
+          evaluatedAt: now,
+        });
+        if (portfolioRun.skipped) {
+          results.push(`Aureus Portfolio: ciclo ${portfolioRun.cycleKey} já persistido`);
+        } else if (portfolioRun.result) {
+          results.push(
+            `Aureus Portfolio: ${consensus.verdict}, NAV ${portfolioRun.result.snapshot.nav.toFixed(4)}, ` +
+            `exposição ${(portfolioRun.result.snapshot.exposure * 100).toFixed(2)}%`,
+          );
+        }
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "erro";
+    console.error(`[cron] Histórico sinais: ${msg}`);
+    errors.push(`Histórico sinais: ${msg}`);
   }
 
   // â”€â”€â”€ Push de sinais via WhatsApp (toda hora) â”€â”€â”€

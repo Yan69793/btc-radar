@@ -114,6 +114,16 @@ export const navItems: NavItem[] = [
     ),
   },
   {
+    to: '/track-record',
+    label: 'Track Record',
+    icon: (
+      <svg {...svgProps}>
+        <polyline points="3 17 9 11 13 15 21 7" />
+        <polyline points="14 7 21 7 21 14" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Configurações',
     icon: (

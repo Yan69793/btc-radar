@@ -14,6 +14,7 @@ const Trades = lazy(() => import('./pages/Trades').then((m) => ({ default: m.Tra
 const Alerts = lazy(() => import('./pages/Alerts').then((m) => ({ default: m.Alerts })))
 const Backtest = lazy(() => import('./pages/Backtest').then((m) => ({ default: m.Backtest })))
 const Portfolio = lazy(() => import('./pages/Portfolio').then((m) => ({ default: m.Portfolio })))
+const TrackRecord = lazy(() => import('./pages/TrackRecord').then((m) => ({ default: m.TrackRecord })))
 const Briefing = lazy(() => import('./pages/Briefing').then((m) => ({ default: m.Briefing })))
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })))
 
@@ -95,8 +96,9 @@ export default function App() {
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/backtest" element={<Backtest />} />
                 <Route path="/portfolio" element={<Portfolio />} />
+                <Route path="/track-record" element={<TrackRecord />} />
                 <Route path="/briefing" element={<Briefing />} />
-                <Route path="/settings" element={<Settings />} />`r`n
+                <Route path="/settings" element={<Settings />} />
               </Routes>
             </Suspense>
           </main>
