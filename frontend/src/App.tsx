@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+﻿import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { PlatformHeader } from './components/layout/PlatformHeader'
 import { Footer } from './components/layout/Footer'
@@ -43,7 +43,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
         <div className="flex min-h-screen items-center justify-center bg-dark-bg p-4 text-dark-text-primary">
           <div className="card w-full max-w-md space-y-4 p-6 text-center sm:p-8">
             <div className="text-xl font-bold text-accent-red sm:text-2xl">Erro</div>
-            <p className="text-sm text-dark-text-muted">{this.state.error || 'Erro inesperado ao renderizar a aplicação.'}</p>
+            <p className="text-sm text-dark-text-muted">{this.state.error || 'Erro inesperado ao renderizar a aplicaÃ§Ã£o.'}</p>
             <button
               onClick={() => {
                 this.setState({ hasError: false, error: null })
@@ -96,7 +96,7 @@ export default function App() {
                 <Route path="/backtest" element={<Backtest />} />
                 <Route path="/portfolio" element={<Portfolio />} />
                 <Route path="/briefing" element={<Briefing />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings" element={<Settings />} />`r`n
               </Routes>
             </Suspense>
           </main>
@@ -107,3 +107,5 @@ export default function App() {
     </ErrorBoundary>
   )
 }
+
+

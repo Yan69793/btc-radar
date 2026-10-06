@@ -1,0 +1,31 @@
+# Dependências e builds
+node_modules/
+dist/
+pages-dist/
+.vite/
+*.tsbuildinfo
+.asset-backup/
+
+# Cache do wrangler
+.wrangler/
+
+# Ambientes Python (venv, pycache)
+venv/
+__pycache__/
+*.pyc
+
+# Repo git separado (landing-higgsfield tem remote próprio)
+landing-higgsfield/
+
+# Segredos e envs locais
+.dev.vars*
+*.local
+wrangler.toml.encrypt
+
+# Artefatos de execução / temporários
+temp_*.json
+results/
+
+# Editores / OS
+.DS_Store
+Thumbs.db

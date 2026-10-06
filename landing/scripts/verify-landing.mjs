@@ -113,7 +113,7 @@ const indexHtml = existsSync(join(SAIDA, 'index.html'))
   ? readFileSync(join(SAIDA, 'index.html'), 'utf8')
   : '';
 
-const refs = [...indexHtml.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+const refs = [...indexHtml.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1].split('?')[0]);
 // landing.css e auth.js sao texto (nao binario); os demais /assets/* precisam
 // estar na allowlist binaria.
 const TEXTO_ASSETS = ['/assets/landing.css', '/assets/auth.js'];

@@ -139,7 +139,7 @@ export function Briefing() {
         title="Briefing diario"
         meta={
           <>
-            Gerado por IA a partir dos dados coletados
+            Dados coletados automaticamente
             {briefings.length > 0 && (
               <span className="ml-2">
                 {briefings.length} edicao{briefings.length !== 1 ? 'es' : ''}

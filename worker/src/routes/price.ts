@@ -1,12 +1,13 @@
-// BTC Radar — Rotas de preço
-// Fonte primária: OKX (ticker, alta/baixa/volume 24h)
-// Fallback: CoinPaprika (preço, market cap, dominância) — OKX devolve 429 para IP de datacenter
+﻿// BTC Radar â€” Rotas de preÃ§o
+// Fonte primÃ¡ria: OKX (ticker, alta/baixa/volume 24h)
+// Fallback: CoinPaprika (preÃ§o, market cap, dominÃ¢ncia) â€” OKX devolve 429 para IP de datacenter
 // Cache KV unificado: btc:price:v3, com stale servido quando todas as fontes falham
 
 import { Hono } from "hono";
 import type { Env } from "../types";
-import { fetchTicker as fetchCPTicker, fetchOHLCV } from "../lib/coinpaprika";
+import { fetchTicker as fetchCPTicker } from "../lib/coinpaprika";
 import { fetchOKXTicker, fetchOKXOHLCV } from "../lib/okx";
+import { fetchOHLCVWithFallback } from "../lib/ohlcv-providers";
 import { fetchFearGreedToday } from "../lib/alternativeme";
 import { kvGetJSON, deduped } from "../lib/kv-helpers";
 import type { ApiResponse, PriceSnapshot, OHLCV } from "../types";
@@ -46,7 +47,7 @@ async function fetchTickerWithFallback(): Promise<PriceSnapshot> {
     }
     return ticker;
   } catch (err) {
-    // OKX pode devolver 429 para o IP do Worker. CoinPaprika cobre preço + market cap + dominância.
+    // OKX pode devolver 429 para o IP do Worker. CoinPaprika cobre preÃ§o + market cap + dominÃ¢ncia.
     console.error(`[price] OKX falhou, usando CoinPaprika: ${err instanceof Error ? err.message : err}`);
     return await deduped("cp:ticker", () => fetchCPTicker());
   }
@@ -76,7 +77,7 @@ priceRoutes.get("/latest", async (c) => {
       } satisfies ApiResponse<PriceSnapshot & { stale?: boolean }>);
     }
     return c.json(
-      { success: false, data: null, error: "Fontes de preço indisponíveis", timestamp: new Date().toISOString() },
+      { success: false, data: null, error: "Fontes de preÃ§o indisponÃ­veis", timestamp: new Date().toISOString() },
       502
     );
   };
@@ -92,7 +93,7 @@ priceRoutes.get("/latest", async (c) => {
       } satisfies ApiResponse<PriceSnapshot>);
     }
 
-    // OKX primária, CoinPaprika fallback (market cap e dominância já vêm dela)
+    // OKX primÃ¡ria, CoinPaprika fallback (market cap e dominÃ¢ncia jÃ¡ vÃªm dela)
     let ticker: PriceSnapshot;
     try {
       ticker = await fetchTickerWithFallback();
@@ -109,7 +110,7 @@ priceRoutes.get("/latest", async (c) => {
       timestamp: new Date().toISOString(),
     } satisfies ApiResponse<PriceSnapshot>);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao buscar preço";
+    const message = err instanceof Error ? err.message : "Erro ao buscar preÃ§o";
     return c.json(
       { success: false, data: null, error: message, timestamp: new Date().toISOString() },
       502
@@ -137,14 +138,9 @@ priceRoutes.get("/history", async (c) => {
       }
     }
 
-    let data: OHLCV[];
-    try {
-      data = await deduped(`okx:ohlcv:${interval}:${limit}`, () => fetchOKXOHLCV(interval, limit));
-    } catch (err) {
-      // Fallback: CoinPaprika
-      console.error(`[price] OKX OHLCV falhou, usando CoinPaprika: ${err instanceof Error ? err.message : err}`);
-      data = await deduped(`cp:ohlcv:${interval}:${limit}`, () => fetchOHLCV(interval, limit));
-    }
+    const data = await deduped(`ohlcv:fallback:${interval}:${limit}`, () =>
+      fetchOHLCVWithFallback(interval, limit)
+    );
 
     await c.env.KV.put(cacheKey, JSON.stringify({ data, ts: new Date().toISOString() }), {
       expirationTtl: ttl,
@@ -156,7 +152,7 @@ priceRoutes.get("/history", async (c) => {
       timestamp: new Date().toISOString(),
     } satisfies ApiResponse<OHLCV[]>);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro ao buscar histórico";
+    const message = err instanceof Error ? err.message : "Erro ao buscar histÃ³rico";
     return c.json(
       { success: false, data: null, error: message, timestamp: new Date().toISOString() },
       502
@@ -166,7 +162,7 @@ priceRoutes.get("/history", async (c) => {
 
 priceRoutes.get("/current", async (c) => {
   try {
-    // Compõe de cache primeiro; busca só o que faltar
+    // CompÃµe de cache primeiro; busca sÃ³ o que faltar
     const cachedPrice = await getCachedPrice(c.env.KV);
     const cachedFg = await kvGetJSON<{ value: number; classification: string; timestamp: string }>(
       c.env.KV, "sentiment:fear-greed"
@@ -193,7 +189,7 @@ priceRoutes.get("/current", async (c) => {
 
     if (!ticker) {
       return c.json(
-        { success: false, data: null, error: "Fontes de preço indisponíveis", timestamp: new Date().toISOString() },
+        { success: false, data: null, error: "Fontes de preÃ§o indisponÃ­veis", timestamp: new Date().toISOString() },
         502
       );
     }
@@ -214,3 +210,4 @@ priceRoutes.get("/current", async (c) => {
     );
   }
 });
+

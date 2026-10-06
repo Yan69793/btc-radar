@@ -1,14 +1,15 @@
-// BTC Radar — Tipos do sistema
+﻿// BTC Radar â€” Tipos do sistema
 
 import type { D1Database, KVNamespace } from "@cloudflare/workers-types";
 
-// ─── Environment ───
+// â”€â”€â”€ Environment â”€â”€â”€
 
 export interface Env {
   DB: D1Database;
   KV: KVNamespace;
   CORS_ORIGINS?: string;
   ADMIN_EMAILS?: string;
+  ADMIN_PANEL_PASSWORD?: string;
   WHATSAPP_TOKEN?: string;
   WHATSAPP_PHONE_NUMBER_ID?: string;
   WHATSAPP_VERIFY_TOKEN?: string;
@@ -16,7 +17,7 @@ export interface Env {
   SZ_SITES?: Fetcher;
 }
 
-// ─── Mercado / Preço ───
+// â”€â”€â”€ Mercado / PreÃ§o â”€â”€â”€
 
 export interface PriceSnapshot {
   symbol: string; // "BTC-USD"
@@ -41,7 +42,7 @@ export interface OHLCV {
   source: string;
 }
 
-// ─── On-Chain ───
+// â”€â”€â”€ On-Chain â”€â”€â”€
 
 export interface OnChainSnapshot {
   timestamp: string;
@@ -56,7 +57,7 @@ export interface OnChainSnapshot {
   source: string;
 }
 
-// ─── Sentimento ───
+// â”€â”€â”€ Sentimento â”€â”€â”€
 
 export interface FearGreedData {
   value: number; // 1-100
@@ -74,7 +75,7 @@ export interface NewsItem {
   summary: string | null;
 }
 
-// ─── Sinais ───
+// â”€â”€â”€ Sinais â”€â”€â”€
 
 export type Timeframe = "short" | "medium" | "long";
 export type Verdict = "COMPRAR" | "AGUARDAR" | "VENDER" | "REDUZIR";
@@ -119,7 +120,7 @@ export interface SignalPayload {
   timeframe_hours: number;
 }
 
-// ─── Trades ───
+// â”€â”€â”€ Trades â”€â”€â”€
 
 export type TradeDirection = "long" | "short";
 export type TradeStatus = "open" | "closed" | "partial" | "cancelled";
@@ -154,7 +155,7 @@ export interface TradePerformance {
   profit_factor: number | null; // null = lucro sem nenhuma perda (frontend trata como infinito)
 }
 
-// ─── Portfolio ───
+// â”€â”€â”€ Portfolio â”€â”€â”€
 
 export interface PortfolioSnapshot {
   timestamp: string;
@@ -181,7 +182,7 @@ export interface PortfolioCurrent {
   unrealized_pnl_pct: number;
 }
 
-// ─── Alertas ───
+// â”€â”€â”€ Alertas â”€â”€â”€
 
 export type AlertType = "price" | "technical" | "onchain" | "news" | "system";
 
@@ -195,7 +196,7 @@ export interface Alert {
   payload: Record<string, unknown> | null;
 }
 
-// ─── Backtest ───
+// â”€â”€â”€ Backtest â”€â”€â”€
 
 export interface BacktestRun {
   id: string;
@@ -247,7 +248,7 @@ export interface BacktestRunWithScore extends BacktestRun {
   score_data: BacktestScoreResult | null;
 }
 
-// ─── Briefing ───
+// â”€â”€â”€ Briefing â”€â”€â”€
 
 export interface Briefing {
   id: number;
@@ -258,7 +259,7 @@ export interface Briefing {
   summary: string;
 }
 
-// ─── Requisições ───
+// â”€â”€â”€ RequisiÃ§Ãµes â”€â”€â”€
 
 export interface GenerateSignalRequest {
   symbol?: string; // default "BTC-USD"
@@ -302,7 +303,7 @@ export interface BacktestRequest {
   date_to: string;
 }
 
-// ─── WhatsApp ───
+// â”€â”€â”€ WhatsApp â”€â”€â”€
 
 export interface WhatsAppSubscriber {
   phone: string;
@@ -328,7 +329,7 @@ export interface WhatsAppMessage {
   status: string | null;
 }
 
-// ─── API Responses ───
+// â”€â”€â”€ API Responses â”€â”€â”€
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -342,3 +343,5 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   offset: number;
   total: number;
 }
+
+

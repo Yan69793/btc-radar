@@ -1,9 +1,8 @@
-// BTC Radar — Cron handler para coleta batch
+﻿// BTC Radar â€” Cron handler para coleta batch
 // Executado pelo trigger no wrangler.toml: ["0 */1 * * *"]
 
 import type { Env } from "./types";
-import { fetchOHLCV } from "./lib/coinpaprika";
-import { fetchOKXOHLCV } from "./lib/okx";
+import { fetchOHLCVWithFallback, crossCheckOHLCV } from "./lib/ohlcv-providers";
 import { fetchFearGreedToday } from "./lib/alternativeme";
 import { fetchOnChainSnapshot } from "./lib/mempool";
 import { fetchNewsAggregated } from "./lib/news-sources";
@@ -12,48 +11,15 @@ import { insertPriceQuery, insertFearGreedQuery, insertNewsQuery } from "./db/qu
 const OHLCV_INTERVALS = ["1h", "4h", "1d"] as const;
 
 async function collectOHLCV(env: Env, interval: (typeof OHLCV_INTERVALS)[number]): Promise<number> {
-  let bar;
-  try {
-    // limit 2: OKX devolve em ordem cronologica e a ultima barra e a em formacao
-    // (confirm=0). A penultima (bars[0]) e a barra fechada.
-    const bars = await fetchOKXOHLCV(interval, 2);
-    bar = bars[0];
-  } catch (err) {
-    // CoinPaprika mapeia 4h para 6h; gravar barra de 6h como 4h distorce EMA/RSI
-    // e intercala timestamps 00/06/12/18 com os 00/04/08/12 do OKX. Pula o 4h.
-    if (interval === "4h") {
-      console.error(`[cron] OKX OHLCV 4h falhou e CoinPaprika nao tem 4h: ${err instanceof Error ? err.message : err}`);
-      return 0;
-    }
-    console.error(`[cron] OKX OHLCV ${interval} falhou, usando CoinPaprika: ${err instanceof Error ? err.message : err}`);
-    const bars = await fetchOHLCV(interval, 2);
-    bar = bars[0];
-  }
-
+  const bars = await fetchOHLCVWithFallback(interval, 2);
+  const bar = bars.length > 1 ? bars[bars.length - 2] : bars[0];
   if (!bar) return 0;
-
-  // Normaliza timestamp para ISO com .000Z: o CoinPaprika manda sem milissegundos,
-  // string diferente da OKX, e o UNIQUE(timestamp, interval) nao colidiria
   const ts = new Date(bar.timestamp).toISOString();
-
-  // INSERT OR REPLACE: upsert por (timestamp, interval), sem duplicar
-  await env.DB.prepare(insertPriceQuery())
-    .bind(
-      "BTC-USD",
-      ts,
-      bar.open,
-      bar.high,
-      bar.low,
-      bar.close,
-      bar.volume,
-      bar.interval,
-      bar.source
-    )
-    .run();
-
+  await env.DB.prepare(insertPriceQuery()).bind(
+    "BTC-USD", ts, bar.open, bar.high, bar.low, bar.close, bar.volume, bar.interval, bar.source
+  ).run();
   return bar.close;
 }
-
 export async function handleScheduled(
   _event: ScheduledEvent,
   env: Env,
@@ -64,29 +30,35 @@ export async function handleScheduled(
   const results: string[] = [];
   const errors: string[] = [];
 
-  // ─── Coleta OHLCV (toda hora): 1h, 4h, 1d via OKX com fallback CoinPaprika ───
-  // Nota: ticker de preço NÃO é coletado aqui. O KV expira em 2 min e a rota
-  // /api/price serve sob demanda com cache de 60s, cron de hora em hora não
-  // mantém dado fresco.
-  const ohlcvResults = await Promise.allSettled(
-    OHLCV_INTERVALS.map(async (interval) => {
-      try {
-        const close = await collectOHLCV(env, interval);
-        if (close > 0) {
-          results.push(`OHLCV ${interval}: close $${close.toLocaleString("en-US")}`);
-        }
-      } catch (err) {
-        errors.push(`OHLCV ${interval}: ${err instanceof Error ? err.message : "erro"}`);
+  // â”€â”€â”€ Coleta OHLCV (toda hora): 1h, 4h, 1d via OKX com fallback CoinPaprika â”€â”€â”€
+  // Nota: ticker de preÃ§o NÃƒO Ã© coletado aqui. O KV expira em 2 min e a rota
+  // /api/price serve sob demanda com cache de 60s, cron de hora em hora nÃ£o
+  // mantÃ©m dado fresco.
+  // Prioridade OHLCV: Coinbase -> Binance -> Kraken -> OKX. Consultas serializadas para reduzir rate-limit.
+  for (const interval of OHLCV_INTERVALS) {
+    try {
+      const close = await collectOHLCV(env, interval);
+      if (close > 0) {
+        results.push(`OHLCV ${interval}: close $${close.toLocaleString("en-US")}`);
       }
-    })
-  );
-  for (const r of ohlcvResults) {
-    if (r.status === "rejected") {
-      console.error(`[cron] OHLCV: ${r.reason instanceof Error ? r.reason.message : r.reason}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "erro";
+      console.error(`[cron] OHLCV ${interval}: ${msg}`);
+      errors.push(`OHLCV ${interval}: ${msg}`);
     }
   }
 
-  // ─── Coleta Fear & Greed (a cada 6h: 00, 06, 12, 18 UTC) ───
+  // â”€â”€â”€ Coleta Fear & Greed (a cada 6h: 00, 06, 12, 18 UTC) â”€â”€â”€
+  // Cross-check independente: Coinbase BTC-USD x Binance BTC-USDT.
+  try {
+    const check = await crossCheckOHLCV("1h");
+    await env.KV.put("btc:ohlcv:cross-check", JSON.stringify({ ...check, checked_at: new Date().toISOString() }), { expirationTtl: 7200 });
+    if (check.divergence_pct !== null && !check.ok) {
+      errors.push(`OHLCV cross-check: Coinbase x Binance divergence ${check.divergence_pct}%`);
+    }
+  } catch (err) {
+    console.error(`[cron] OHLCV cross-check indisponivel: ${err instanceof Error ? err.message : err}`);
+  }
   if (hour % 6 === 0) {
     try {
       const fg = await fetchFearGreedToday();
@@ -106,8 +78,8 @@ export async function handleScheduled(
     }
   }
 
-  // ─── Derivativos (funding rate + open interest, toda hora) ───
-  // Grava o MESMO shape da rota /api/derivatives para o cache ser intercambiável
+  // â”€â”€â”€ Derivativos (funding rate + open interest, toda hora) â”€â”€â”€
+  // Grava o MESMO shape da rota /api/derivatives para o cache ser intercambiÃ¡vel
   try {
     const [fundingRes, oiRes] = await Promise.all([
       fetch("https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP"),
@@ -159,7 +131,7 @@ export async function handleScheduled(
     errors.push(`Derivativos: ${msg}`);
   }
 
-  // ─── On-chain (mempool.space, toda hora) ───
+  // â”€â”€â”€ On-chain (mempool.space, toda hora) â”€â”€â”€
   try {
     const snap = await fetchOnChainSnapshot();
     if (snap.block_height != null || snap.hash_rate != null || snap.avg_fee_sats != null) {
@@ -191,7 +163,7 @@ export async function handleScheduled(
     errors.push(`On-chain: ${msg}`);
   }
 
-  // ─── Coleta de noticias (toda hora) ───
+  // â”€â”€â”€ Coleta de noticias (toda hora) â”€â”€â”€
   try {
     const news = await fetchNewsAggregated("hot", 20);
     await env.KV.put("news:v2:hot", JSON.stringify(news), { expirationTtl: 900 });
@@ -213,7 +185,7 @@ export async function handleScheduled(
     errors.push(`Noticias: ${msg}`);
   }
 
-  // ─── Briefing diario (19h BRT = 22h UTC) ───
+  // â”€â”€â”€ Briefing diario (19h BRT = 22h UTC) â”€â”€â”€
   if (hour === 22) {
     try {
       const { generateBriefing, storeBriefing } = await import("./lib/briefing");
@@ -243,7 +215,7 @@ export async function handleScheduled(
     }
   }
 
-  // ─── Push de sinais via WhatsApp (toda hora) ───
+  // â”€â”€â”€ Push de sinais via WhatsApp (toda hora) â”€â”€â”€
   try {
     const { notifyHighConvictionSignals } = await import("./lib/notifier");
     const notification = await notifyHighConvictionSignals(env);
@@ -259,7 +231,7 @@ export async function handleScheduled(
     errors.push(`WhatsApp Sinais: ${msg}`);
   }
 
-  // ─── Heartbeat: registra a execucao para operacao saber que aconteceu ───
+  // â”€â”€â”€ Heartbeat: registra a execucao para operacao saber que aconteceu â”€â”€â”€
   try {
     const durationMs = Date.now() - startTime;
     await env.DB.prepare(
@@ -281,9 +253,11 @@ export async function handleScheduled(
     console.error(`[cron] heartbeat: ${err instanceof Error ? err.message : "erro"}`);
   }
 
-  // ─── Log ───
+  // â”€â”€â”€ Log â”€â”€â”€
   console.log(
     `[btc-radar cron] ${new Date().toISOString()} | OK: ${results.join(" | ")}` +
       (errors.length > 0 ? ` | ERROS: ${errors.join(" | ")}` : "")
   );
 }
+
+

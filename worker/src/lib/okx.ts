@@ -5,6 +5,22 @@
 import type { OHLCV, PriceSnapshot } from "../types";
 
 const BASE_URL = "https://www.okx.com/api/v5";
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let last: Response | null = null;
+  for (let i = 0; i < attempts; i++) {
+    const res = await fetch(url);
+    if (!RETRYABLE_STATUS.has(res.status) || i === attempts - 1) return res;
+    last = res;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const delayMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1000, 2000)
+      : 300 * (i + 1);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return last!;
+}
 
 const BAR_MAP: Record<string, string> = {
   "1h": "1H",
@@ -20,7 +36,7 @@ export async function fetchOKXOHLCV(
   const bar = BAR_MAP[interval] ?? "1D";
   const url = `${BASE_URL}/market/candles?instId=BTC-USDT&bar=${bar}&limit=${limit}`;
 
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url);
   if (!res.ok) {
     throw new Error(`OKX OHLCV error: ${res.status} ${res.statusText}`);
   }

@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
 import type { ApiResponse, WhatsAppSubscriber } from '../types'
 import { apiSend } from '../lib/api'
+import { getToken } from '../lib/session'
 import { PageHeader } from '../components/PageHeader'
 
 export function Settings() {
-  // ─── WhatsApp subscription state ───
+  // â”€â”€â”€ WhatsApp subscription state â”€â”€â”€
   const [phone, setPhone] = useState('')
   const [subscriber, setSubscriber] = useState<WhatsAppSubscriber | null>(null)
   const [loading, setLoading] = useState(true)
@@ -13,6 +14,10 @@ export function Settings() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [testSending, setTestSending] = useState(false)
+  const [adminPassword, setAdminPassword] = useState('')
+  const [adminUsers, setAdminUsers] = useState<Array<{id:number;name:string;email:string;created_at:string;last_login_at:string|null;login_count:number}> | null>(null)
+  const [adminError, setAdminError] = useState<string | null>(null)
+  const [adminQuery, setAdminQuery] = useState('')
 
   // Preferences toggles
   const [prefs, setPrefs] = useState({
@@ -47,7 +52,26 @@ export function Settings() {
     fetchSubscriber()
   }, [fetchSubscriber])
 
-  // ─── Subscribe / Update ───
+  // â”€â”€â”€ Subscribe / Update â”€â”€â”€
+
+  async function unlockAdmin(e: React.FormEvent) {
+    e.preventDefault(); setAdminError(null)
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || ''
+      const res = await fetch(`${baseUrl}/api/auth/admin/users`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${getToken() ?? ''}`}, body:JSON.stringify({password:adminPassword}) })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'Acesso negado')
+      setAdminUsers(json.data); setAdminPassword('')
+    } catch (err) { setAdminError(err instanceof Error ? err.message : 'Acesso negado') }
+  }
+
+  function exportAdminCsv() {
+    if (!adminUsers) return
+    const rows=[['Nome','Email','Cadastro','Ultimo acesso','Logins'],...adminUsers.map(u=>[u.name,u.email,u.created_at,u.last_login_at??'',u.login_count])]
+    const esc=(v:unknown)=>'"'+String(v).replace(/"/g,'""')+'"'
+    const blob=new Blob(['\ufeff'+rows.map(r=>r.map(esc).join(';')).join('\n')],{type:'text/csv;charset=utf-8'})
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='btc-radar-usuarios.csv'; a.click(); URL.revokeObjectURL(a.href)
+  }
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -74,7 +98,7 @@ export function Settings() {
     }
   }
 
-  // ─── Unsubscribe ───
+  // â”€â”€â”€ Unsubscribe â”€â”€â”€
   async function handleUnsubscribe() {
     if (!subscriber) return
     setSaving(true)
@@ -93,7 +117,7 @@ export function Settings() {
     }
   }
 
-  // ─── Send test ───
+  // â”€â”€â”€ Send test â”€â”€â”€
   async function handleTest() {
     if (!subscriber) return
     setTestSending(true)
@@ -111,7 +135,7 @@ export function Settings() {
     }
   }
 
-  // ─── Update preferences ───
+  // â”€â”€â”€ Update preferences â”€â”€â”€
   async function handlePrefToggle(key: 'signals' | 'alerts' | 'briefing') {
     const updated = { ...prefs, [key]: !prefs[key] }
     setPrefs(updated)
@@ -127,8 +151,8 @@ export function Settings() {
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
       <PageHeader
         eyebrow="Conta"
-        title="Configurações"
-        meta="Preferências de notificação e canais"
+        title="ConfiguraÃ§Ãµes"
+        meta="PreferÃªncias de notificaÃ§Ã£o e canais"
         context="SETTINGS"
       />
 
@@ -194,7 +218,7 @@ export function Settings() {
               {[
                 { key: 'signals' as const, label: 'Sinais de Trading', desc: 'Sinais de alta conviccao (COMPRAR/VENDER, conviccao >= 6)' },
                 { key: 'alerts' as const, label: 'Alertas de Preco', desc: 'Quando o preco atingir seus limites configurados' },
-                { key: 'briefing' as const, label: 'Briefing Diario', desc: 'Resumo diario do mercado gerado por IA (19h BRT)' },
+                { key: 'briefing' as const, label: 'Briefing Diario', desc: 'Resumo diario do mercado (19h BRT)' },
               ].map((item) => (
                 <label key={item.key} className="flex items-center justify-between p-3 rounded-lg bg-dark-bg-hover/50 hover:bg-dark-bg-hover transition-colors cursor-pointer">
                   <div className="flex-1 min-w-0">
@@ -301,6 +325,16 @@ export function Settings() {
         )}
       </div>
 
+
+      <div className="card p-6 space-y-4">
+        <div><h2 className="text-dark-text-primary font-semibold text-base">Administracao</h2><p className="text-dark-text-dim text-xs mt-1">Usuarios cadastrados e atividade de acesso. Area exclusiva do administrador.</p></div>
+        {!adminUsers ? <form onSubmit={unlockAdmin} className="flex flex-col sm:flex-row gap-2"><input type="password" autoComplete="current-password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} placeholder="Senha administrativa" className="flex-1 px-3 py-2.5 bg-dark-bg-hover border border-dark-bg-border rounded-lg text-dark-text-primary text-sm"/><button type="submit" className="px-4 py-2.5 bg-accent-blue text-white rounded-lg text-sm font-medium">Desbloquear</button></form> : <>
+          <div className="grid grid-cols-3 gap-2"><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Cadastrados</span><strong className="text-dark-text-primary text-xl">{adminUsers.length}</strong></div><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Ativos 30d</span><strong className="text-dark-text-primary text-xl">{adminUsers.filter(u=>u.last_login_at && Date.now()-new Date(u.last_login_at).getTime()<2592000000).length}</strong></div><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Retornaram</span><strong className="text-dark-text-primary text-xl">{adminUsers.filter(u=>u.login_count>1).length}</strong></div></div>
+          <div className="flex gap-2"><input value={adminQuery} onChange={e=>setAdminQuery(e.target.value)} placeholder="Buscar nome ou email" className="flex-1 px-3 py-2 bg-dark-bg-hover border border-dark-bg-border rounded-lg text-dark-text-primary text-xs"/><button onClick={exportAdminCsv} type="button" className="px-3 py-2 border border-accent-blue/40 text-accent-blue rounded-lg text-xs">Exportar CSV</button></div>
+          <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-dark-text-muted border-b border-dark-bg-border"><th className="py-2 pr-3">Nome</th><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">Cadastro</th><th className="py-2 pr-3">Ultimo acesso</th><th className="py-2 text-right">Logins</th></tr></thead><tbody>{adminUsers.filter(u=>!adminQuery.trim() || (u.name+' '+u.email).toLowerCase().includes(adminQuery.toLowerCase())).map(u=><tr key={u.id} className="border-b border-dark-bg-border/50 text-dark-text-primary"><td className="py-2.5 pr-3">{u.name}</td><td className="py-2.5 pr-3"><a className="text-accent-blue" href={'mailto:'+u.email}>{u.email}</a></td><td className="py-2.5 pr-3 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="py-2.5 pr-3 whitespace-nowrap">{u.last_login_at?new Date(u.last_login_at).toLocaleString('pt-BR'):'-'}</td><td className="py-2.5 text-right">{u.login_count}</td></tr>)}</tbody></table></div>
+        </>}
+        {adminError && <div className="text-red-400 text-xs">{adminError}</div>}
+      </div>
       {/* Info card */}
       <div className="card p-5 border-accent-blue/20 bg-accent-blue/[0.02]">
         <div className="flex items-start gap-3">
@@ -327,3 +361,4 @@ export function Settings() {
     </div>
   )
 }
+

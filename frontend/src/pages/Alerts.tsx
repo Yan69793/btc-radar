@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { SkeletonCard } from '../components/Skeleton'
 import { PageHeader } from '../components/PageHeader'
 import { fmtDateTime, fmtPrice } from '../lib/formatters'
-import { apiSend } from '../lib/api'
+import { apiFetch, apiSend } from '../lib/api'
 
 // ─── Types ───
 
@@ -301,8 +301,7 @@ export function Alerts() {
     setLoading(true)
     setError(null)
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || ''
-      const res = await fetch(`${baseUrl}/api/alerts`)
+      const res = await apiFetch('/api/alerts')
       const json: ApiResponse<Alert[]> = await res.json()
       if (!json.success) throw new Error(json.error || 'Erro ao carregar')
       setAlerts(json.data)

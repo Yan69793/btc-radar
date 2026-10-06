@@ -49,32 +49,23 @@ async function withTimeout(fetcher: (req: Request) => Promise<Response>, req: Re
   }
 }
 
-export async function fetchMultiEndpoint(env: Env, path: string, timeoutMs = 8000): Promise<EndpointResult> {
-  const viaBinding = !!env.SZ_SITES && typeof env.SZ_SITES.fetch === "function";
-  const url = `${MULTI_ORIGIN}${path}`;
-  const fetcher = viaBinding
-    ? (req: Request) => env.SZ_SITES!.fetch(req)
-    : (req: Request) => fetch(req);
-
+async function fetchAttempt(
+  fetcher: (req: Request) => Promise<Response>,
+  req: Request,
+  timeoutMs: number,
+  via: EndpointResult["via"],
+): Promise<EndpointResult> {
   try {
-    const res = await withTimeout(fetcher, new Request(url, {
-      headers: { Accept: "application/json" },
-    }), timeoutMs);
+    const res = await withTimeout(fetcher, req, timeoutMs);
     if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        via: viaBinding ? "service-binding" : "public-fetch",
-        body: null,
-        error: `HTTP ${res.status}`,
-      };
+      return { ok: false, status: res.status, via, body: null, error: "HTTP " + res.status };
     }
     const body = await res.json() as any;
     const apiOk = body?.ok !== false;
     return {
       ok: apiOk,
       status: res.status,
-      via: viaBinding ? "service-binding" : "public-fetch",
+      via,
       body,
       error: apiOk ? null : body?.error ?? "upstream_reported_failure",
     };
@@ -82,13 +73,32 @@ export async function fetchMultiEndpoint(env: Env, path: string, timeoutMs = 800
     return {
       ok: false,
       status: 0,
-      via: viaBinding ? "service-binding" : "public-fetch",
+      via,
       body: null,
       error: err instanceof Error ? err.message : String(err),
     };
   }
 }
 
+export async function fetchMultiEndpoint(env: Env, path: string, timeoutMs = 8000): Promise<EndpointResult> {
+  const url = MULTI_ORIGIN + path;
+  const req = new Request(url, { headers: { Accept: "application/json" } });
+
+  if (env.SZ_SITES && typeof env.SZ_SITES.fetch === "function") {
+    const binding = await fetchAttempt((request) => env.SZ_SITES!.fetch(request), req, timeoutMs, "service-binding");
+    if (binding.ok) return binding;
+
+    const publicResult = await fetchAttempt((request) => fetch(request), req, timeoutMs, "public-fetch");
+    if (publicResult.ok) return publicResult;
+
+    return {
+      ...publicResult,
+      error: "service-binding: " + (binding.error ?? "unknown") + "; public-fetch: " + (publicResult.error ?? "unknown"),
+    };
+  }
+
+  return fetchAttempt((request) => fetch(request), req, timeoutMs, "public-fetch");
+}
 function makeSource(
   name: IntegrationSource["name"],
   result: EndpointResult,
@@ -154,9 +164,9 @@ export function scoreMacroQuality(sources: IntegrationSource[], market: any, pri
 
 export async function collectMacroContext(env: Env, nowMs = Date.now()) {
   const [macroR, marketR, pricesR] = await Promise.all([
-    fetchMultiEndpoint(env, "/assets/macro.php"),
-    fetchMultiEndpoint(env, "/market-data.php"),
-    fetchMultiEndpoint(env, "/prices.php"),
+    fetchMultiEndpoint(env, "/assets/macro.php", 15_000),
+    fetchMultiEndpoint(env, "/market-data.php", 6_000),
+    fetchMultiEndpoint(env, "/prices.php", 6_000),
   ]);
 
   const macro = macroR.body ?? null;

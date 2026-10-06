@@ -1,8 +1,8 @@
-// BTC Radar — Rotas de autenticacao do demo comercial
-// POST /api/auth/register — cadastro (nome, email, senha), ja loga
-// POST /api/auth/login    — login por email e senha
-// GET  /api/auth/me       — dados da sessao (Bearer token)
-// POST /api/auth/logout   — encerra a sessao
+﻿// BTC Radar â€” Rotas de autenticacao do demo comercial
+// POST /api/auth/register â€” cadastro (nome, email, senha), ja loga
+// POST /api/auth/login    â€” login por email e senha
+// GET  /api/auth/me       â€” dados da sessao (Bearer token)
+// POST /api/auth/logout   â€” encerra a sessao
 
 import { Hono } from "hono";
 import type { Env } from "../types";
@@ -14,6 +14,7 @@ import {
   deleteSession,
   bearerToken,
   rateLimitOk,
+  isAdminEmail,
 } from "../lib/auth";
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
@@ -33,7 +34,7 @@ function fail(status: 400 | 401 | 409 | 429 | 500, error: string) {
   };
 }
 
-// ─── POST /api/auth/register ───
+// â”€â”€â”€ POST /api/auth/register â”€â”€â”€
 
 authRoutes.post("/register", async (c) => {
   try {
@@ -94,7 +95,7 @@ authRoutes.post("/register", async (c) => {
   }
 });
 
-// ─── POST /api/auth/login ───
+// â”€â”€â”€ POST /api/auth/login â”€â”€â”€
 
 authRoutes.post("/login", async (c) => {
   try {
@@ -144,7 +145,7 @@ authRoutes.post("/login", async (c) => {
   }
 });
 
-// ─── GET /api/auth/me ───
+// â”€â”€â”€ GET /api/auth/me â”€â”€â”€
 
 authRoutes.get("/me", async (c) => {
   const token = bearerToken(c.req.header("Authorization"));
@@ -160,7 +161,7 @@ authRoutes.get("/me", async (c) => {
   });
 });
 
-// ─── POST /api/auth/logout ───
+// â”€â”€â”€ POST /api/auth/logout â”€â”€â”€
 
 authRoutes.post("/logout", async (c) => {
   const token = bearerToken(c.req.header("Authorization"));
@@ -171,3 +172,15 @@ authRoutes.post("/logout", async (c) => {
     timestamp: new Date().toISOString(),
   });
 });
+authRoutes.post("/admin/users", async (c) => {
+  const token = bearerToken(c.req.header("Authorization"));
+  const session = await getSession(c.env, token);
+  if (!session) return c.json({ success:false, data:null, error:"Sessao invalida ou expirada.", timestamp:new Date().toISOString() }, 401);
+  if (!isAdminEmail(c.env, session.email)) return c.json({ success:false, data:null, error:"Acesso restrito ao administrador.", timestamp:new Date().toISOString() }, 403);
+  const body = await c.req.json<{ password?: string }>().catch(() => null);
+  if (!c.env.ADMIN_PANEL_PASSWORD || body?.password !== c.env.ADMIN_PANEL_PASSWORD) return c.json({ success:false, data:null, error:"Senha administrativa incorreta.", timestamp:new Date().toISOString() }, 403);
+  const rows = await c.env.DB.prepare("SELECT id,name,email,created_at,last_login_at,login_count FROM users WHERE email NOT LIKE '%@example.com' AND email NOT LIKE '%@btc-radar.local' ORDER BY created_at DESC").all();
+  return c.json({ success:true, data:rows.results ?? [], timestamp:new Date().toISOString() });
+});
+
+

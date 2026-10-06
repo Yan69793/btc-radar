@@ -20,6 +20,10 @@ const PUBLIC_WRITES = new Set([
   "/api/whatsapp/webhook",
 ]);
 
+// Dados privados por usuario: qualquer sessao autenticada pode alterar apenas
+// os proprios registros. O isolamento por user_id e aplicado nas rotas.
+const USER_OWNED_WRITE_PREFIXES = ["/api/alerts", "/api/portfolio"];
+
 function deny(status: 401 | 403, error: string) {
   return Response.json(
     { success: false, data: null, error, timestamp: new Date().toISOString() },
@@ -37,6 +41,11 @@ export const writeGuard: MiddlewareHandler<{ Bindings: Env }> = async (c, next) 
   // Sem sessao valida e sessao sem permissao sao casos diferentes: 401 derruba
   // o login no frontend, 403 apenas recusa a acao e mantem o visitante logado.
   if (!session) return deny(401, "Faca login para executar esta acao.");
+
+  if (USER_OWNED_WRITE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    return next();
+  }
+
   if (!isAdminEmail(c.env, session.email)) {
     return deny(403, "Somente o responsavel pelo Aureus pode alterar dados.");
   }

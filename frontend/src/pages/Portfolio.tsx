@@ -3,7 +3,7 @@ import { useApi } from '../hooks/useApi'
 import { SkeletonCard } from '../components/Skeleton'
 import { PageHeader } from '../components/PageHeader'
 import { fmtPrice, fmtPct, fmtDateTime, pctColor } from '../lib/formatters'
-import { apiSend } from '../lib/api'
+import { apiFetch, apiSend } from '../lib/api'
 
 interface Trade {
   id: string
@@ -136,8 +136,7 @@ export function Portfolio() {
 
   const fetchSnapshots = useCallback(async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || ''
-      const res = await fetch(`${baseUrl}/api/portfolio/history?limit=30`)
+      const res = await apiFetch('/api/portfolio/history?limit=30')
       const json: ApiResponse<PortfolioSnapshot[]> = await res.json()
       if (json.success) setSnapshots(json.data)
     } catch (err) {

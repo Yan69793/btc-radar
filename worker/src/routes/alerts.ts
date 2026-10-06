@@ -10,8 +10,17 @@ import type { Env } from "../types";
 import type { Alert, AlertType } from "../types";
 import { fetchOKXTicker } from "../lib/okx";
 import { deduped } from "../lib/kv-helpers";
+import { bearerToken, getSession } from "../lib/auth";
 
 export const alertRoutes = new Hono<{ Bindings: Env }>();
+
+async function requireUser(c: any) {
+  return getSession(c.env, bearerToken(c.req.header("Authorization")));
+}
+
+function authRequired(c: any) {
+  return c.json({ success: false, data: null, error: "Faca login para acessar seus alertas.", timestamp: new Date().toISOString() }, 401);
+}
 
 // ─── Helpers ───
 
@@ -31,11 +40,14 @@ function alertFromRow(row: Record<string, unknown>): Alert {
 
 alertRoutes.get("/", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const type = c.req.query("type") as string | undefined;
     const acknowledged = c.req.query("acknowledged");
 
-    let sql = "SELECT * FROM alerts WHERE 1=1";
-    const params: unknown[] = [];
+    let sql = "SELECT * FROM alerts WHERE user_id = ?";
+    const params: unknown[] = [session.user_id];
 
     if (type) {
       sql += " AND type = ?";
@@ -67,6 +79,9 @@ alertRoutes.get("/", async (c) => {
 
 alertRoutes.post("/", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const body = await c.req.json<{
       type?: string;
       condition?: string;
@@ -94,10 +109,10 @@ alertRoutes.post("/", async (c) => {
     const payloadJson = body.payload ? JSON.stringify(body.payload) : null;
 
     const result = await c.env.DB.prepare(
-      `INSERT INTO alerts (created_at, type, condition, payload)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO alerts (user_id, created_at, type, condition, payload)
+       VALUES (?, ?, ?, ?, ?)`
     )
-      .bind(now, body.type, body.condition, payloadJson)
+      .bind(session.user_id, now, body.type, body.condition, payloadJson)
       .run();
 
     const alert: Alert = {
@@ -125,11 +140,14 @@ alertRoutes.post("/", async (c) => {
 
 alertRoutes.put("/:id", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const id = parseInt(c.req.param("id"));
     const body = await c.req.json<{ acknowledged?: boolean }>();
 
-    const existing = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ?")
-      .bind(id).first();
+    const existing = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND user_id = ?")
+      .bind(id, session.user_id).first();
 
     if (!existing) {
       return c.json({
@@ -140,12 +158,12 @@ alertRoutes.put("/:id", async (c) => {
     }
 
     if (body.acknowledged !== undefined) {
-      await c.env.DB.prepare("UPDATE alerts SET acknowledged = ? WHERE id = ?")
-        .bind(body.acknowledged ? 1 : 0, id).run();
+      await c.env.DB.prepare("UPDATE alerts SET acknowledged = ? WHERE id = ? AND user_id = ?")
+        .bind(body.acknowledged ? 1 : 0, id, session.user_id).run();
     }
 
-    const updated = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ?")
-      .bind(id).first<Record<string, unknown>>();
+    const updated = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND user_id = ?")
+      .bind(id, session.user_id).first<Record<string, unknown>>();
 
     return c.json({
       success: true,
@@ -162,10 +180,13 @@ alertRoutes.put("/:id", async (c) => {
 
 alertRoutes.delete("/:id", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const id = parseInt(c.req.param("id"));
 
-    const existing = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ?")
-      .bind(id).first();
+    const existing = await c.env.DB.prepare("SELECT * FROM alerts WHERE id = ? AND user_id = ?")
+      .bind(id, session.user_id).first();
 
     if (!existing) {
       return c.json({
@@ -175,7 +196,7 @@ alertRoutes.delete("/:id", async (c) => {
       }, 404);
     }
 
-    await c.env.DB.prepare("DELETE FROM alerts WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("DELETE FROM alerts WHERE id = ? AND user_id = ?").bind(id, session.user_id).run();
 
     return c.json({
       success: true,
@@ -192,10 +213,13 @@ alertRoutes.delete("/:id", async (c) => {
 
 alertRoutes.post("/check", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     // Buscar alertas nao-disparados e nao-reconhecidos
     const result = await c.env.DB.prepare(
-      "SELECT * FROM alerts WHERE triggered_at IS NULL AND acknowledged = 0"
-    ).all();
+      "SELECT * FROM alerts WHERE user_id = ? AND triggered_at IS NULL AND acknowledged = 0"
+    ).bind(session.user_id).all();
 
     const pending = (result.results || []).map(alertFromRow);
     if (pending.length === 0) {
@@ -241,8 +265,8 @@ alertRoutes.post("/check", async (c) => {
       if (hit) {
         updates.push(
           c.env.DB.prepare(
-            "UPDATE alerts SET triggered_at = ? WHERE id = ?"
-          ).bind(now, alert.id)
+            "UPDATE alerts SET triggered_at = ? WHERE id = ? AND user_id = ?"
+          ).bind(now, alert.id, session.user_id)
         );
         triggered.push({ id: alert.id, condition: alert.condition });
       }

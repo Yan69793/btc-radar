@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import type { Env, SignalDocument, Timeframe, FearGreedData, OHLCV } from "../types";
 import { fetchOKXOHLCV } from "../lib/okx";
-import { fetchOHLCV as fetchCPOHLCV } from "../lib/coinpaprika";
+import { fetchKrakenOHLCV } from "../lib/kraken";
 import { fetchFearGreedToday } from "../lib/alternativeme";
 import { generateSignals } from "../lib/signal-engine";
 import { computeConsensus } from "../lib/consensus";
@@ -90,12 +90,12 @@ async function fetchWithRetry(
     console.error(`[signals] D1 OHLCV ${interval} falhou: ${err instanceof Error ? err.message : err}`);
   }
 
-  // Ultima perna: CoinPaprika.
+  // Ultima perna: Kraken publico, sem dependencia de endpoint OHLCV pago.
   try {
-    const cp = await deduped(`cp:ohlcv:${interval}:${limit}`, () => fetchCPOHLCV(interval, limit));
-    if (cp.length > 0) return cp;
+    const kraken = await deduped(`kraken:ohlcv:${interval}:${limit}`, () => fetchKrakenOHLCV(interval, limit));
+    if (kraken.length > 0) return kraken;
   } catch (err) {
-    console.error(`[signals] CoinPaprika ${interval} falhou: ${err instanceof Error ? err.message : err}`);
+    console.error(`[signals] Kraken ${interval} falhou: ${err instanceof Error ? err.message : err}`);
   }
   return [];
 }

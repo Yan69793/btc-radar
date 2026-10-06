@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '../lib/api'
 
 interface UseApiResult<T> {
   data: T | null
@@ -22,8 +23,7 @@ export function useApi<T>(url: string, intervalMs?: number): UseApiResult<T> {
     async function fetchData() {
       setLoading(true)
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || ''
-        const res = await fetch(`${baseUrl}${url}`, { signal: controller.signal })
+        const res = await apiFetch(url, { signal: controller.signal })
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
         const json = await res.json()
         if (!cancelled) {

@@ -25,6 +25,19 @@
 
   if (!form || !tabLogin || !tabRegister || !btn) { return; }
 
+  // MOBILE_LOGIN_FOCUS_V1 - keep the active field above iOS browser chrome/keyboard.
+  var mobileMq = window.matchMedia ? window.matchMedia("(max-width: 900px)") : null;
+  [nameInput, emailInput, pw].forEach(function (input) {
+    if (!input) return;
+    input.addEventListener("focus", function () {
+      if (!mobileMq || !mobileMq.matches) return;
+      window.setTimeout(function () {
+        try { input.scrollIntoView({ block: "center", behavior: "smooth" }); }
+        catch (e) { input.scrollIntoView(); }
+      }, 320);
+    });
+  });
+
   function setMode(next) {
     mode = next;
     var isLogin = mode === "login";

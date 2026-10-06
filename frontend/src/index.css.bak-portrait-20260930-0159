@@ -1,0 +1,1574 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* BTC Radar · sistema visual.
+   Base: near-black quase acromático, bordas translúcidas, um único acento
+   cromático (dourado da marca). Sem glow, sem orbe, sem gradiente decorativo. */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv01', 'ss03', 'tnum';
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: #08090a;
+    color: #f7f8f8;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(232, 179, 58, 0.24);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(232, 179, 58, 0.6);
+    outline-offset: 2px;
+  }
+
+  /* Identidade tipográfica: Inter carrega marca, títulos e corpo — a mesma
+     família da landing. JetBrains Mono fica restrito a dado técnico (preço,
+     métrica, timestamp, indicador). Dois papéis, não três. */
+  h1, h2, h3 {
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* Superfície: nunca cor sólida, sempre branco translúcido sobre o near-black */
+  .card {
+    background: rgba(255, 255, 255, 0.022);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+  }
+
+  .card-interactive {
+    @apply card transition-colors duration-150;
+  }
+
+  .card-interactive:hover {
+    background: rgba(255, 255, 255, 0.038);
+    border-color: rgba(255, 255, 255, 0.11);
+  }
+
+  /* Rótulo técnico: mono, caixa alta, tracking largo */
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #62666d;
+  }
+
+  /* Carimbo de veredito: a assinatura visual do BTC Radar. Mono, caixa alta,
+     régua grossa embaixo em vez de pill arredondado. Repete igual em toda
+     tela que mostra COMPRAR/VENDER/AGUARDAR/REDUZIR. */
+  .verdict-stamp {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2em 0;
+    border-bottom: 2px solid currentColor;
+  }
+
+  /* Dado numérico: mono com tabular figures para coluna alinhada */
+  .metric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Semântico de mercado: cor dessaturada, sem brilho */
+  .verdict-buy { color: #3fb950; }
+  .verdict-sell { color: #f85149; }
+  .verdict-neutral { color: #8a8f98; }
+
+  .rule-top {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .shimmer-loading {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer utilities {
+  .ring-glow-green { box-shadow: 0 0 0 1px rgba(63, 185, 80, 0.4); }
+  .ring-glow-red { box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.4); }
+
+  /* 100vh no iOS Safari inclui a barra de endereco; dvh corrige */
+  .h-dvh-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
+
+
+/* ─────────────────────────────────────────────────────────────
+   Shared platform shell · same identity across every module
+   ───────────────────────────────────────────────────────────── */
+
+.btc-platform-shell {
+  /* Shell de aplicativo: altura definida (não min-height) para que
+     .btc-platform-main seja o scroller interno. Sem isso o documento inteiro
+     rola, o cabeçalho de mercado sai da tela nas páginas longas e a navegação
+     inferior fica fora da viewport no mobile. */
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -180px, rgba(245,170,43,.055), transparent 460px),
+    #05090d;
+  color: #f7f8f8;
+  /* Recorte do aparelho (notch, Dynamic Island, cantos arredondados). Vale 0
+     em qualquer tela sem recorte, então não altera o desktop. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* A barra de status invade o cabeçalho quando viewport-fit=cover está ativo. */
+.btc-platform-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.btc-platform-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 24px 34px;
+}
+
+.btc-platform-header {
+  position: relative;
+  z-index: 40;
+  flex: 0 0 auto;
+  border-bottom: 1px solid rgba(99, 133, 151, .14);
+  background: rgba(4, 8, 12, .94);
+  backdrop-filter: blur(18px);
+}
+
+.btc-platform-header-main {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  padding: 0 24px;
+}
+
+.btc-platform-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: max-content;
+  color: inherit;
+  text-decoration: none;
+}
+
+.btc-platform-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(245,170,43,.48);
+  border-radius: 50%;
+  color: #f5aa2b;
+  font-size: 1.15rem;
+  box-shadow: inset 0 0 18px rgba(245,170,43,.06), 0 0 18px rgba(245,170,43,.05);
+}
+
+.btc-platform-wordmark {
+  display: grid;
+  line-height: 1;
+}
+
+.btc-platform-wordmark strong {
+  color: #eef2f4;
+  font-family: 'Inter', sans-serif;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.btc-platform-wordmark small {
+  margin-top: 4px;
+  color: #59646e;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .48rem;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.btc-platform-nav {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+}
+
+.btc-platform-nav::-webkit-scrollbar { display: none; }
+
+.btc-platform-nav-link {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 21px 9px 18px;
+  color: #6f7982;
+  font-size: .7rem;
+  font-weight: 550;
+  letter-spacing: .015em;
+  text-decoration: none;
+  transition: color .18s ease;
+}
+
+.btc-platform-nav-link:hover {
+  color: #d7dde1;
+}
+
+.btc-platform-nav-link::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  height: 1px;
+  background: transparent;
+  box-shadow: 0 0 0 rgba(245,170,43,0);
+  transition: background .18s ease, box-shadow .18s ease;
+}
+
+.btc-platform-nav-link.active {
+  color: #f4f6f7;
+}
+
+.btc-platform-nav-link.active::after {
+  background: #f5aa2b;
+  box-shadow: 0 0 10px rgba(245,170,43,.36);
+}
+
+.btc-platform-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btc-platform-icon-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(113, 144, 160, .16);
+  border-radius: 8px;
+  color: #74808a;
+  background: rgba(255,255,255,.015);
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
+}
+
+.btc-platform-icon-button:hover,
+.btc-platform-icon-button.active {
+  border-color: rgba(245,170,43,.32);
+  color: #f5aa2b;
+  background: rgba(245,170,43,.045);
+}
+
+.btc-platform-marketbar {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(99,133,151,.08);
+  background: rgba(1, 5, 8, .72);
+}
+
+.btc-platform-live {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 18px 0 24px;
+  color: #d1d8dc;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .55rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.btc-platform-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38d39f;
+  box-shadow: 0 0 12px rgba(56,211,159,.65);
+  animation: btc-live-pulse 2.2s ease-in-out infinite;
+}
+
+.btc-platform-marketitem {
+  min-width: 0;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 15px;
+  border-left: 1px solid rgba(99,133,151,.08);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.btc-platform-marketitem span {
+  color: #53606a;
+  font-size: .5rem;
+  letter-spacing: .1em;
+}
+
+.btc-platform-marketitem strong,
+.btc-platform-marketitem em {
+  color: #cbd3d8;
+  font-size: .62rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.btc-platform-marketitem em {
+  color: #77838c;
+}
+
+.btc-platform-source {
+  margin-left: auto;
+  padding: 0 24px;
+  color: #45515b;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .5rem;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+/* Shared module language */
+.btc-platform-main > * {
+  width: 100%;
+}
+
+.btc-platform-main .card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.024), rgba(255,255,255,.012)),
+    rgba(5, 10, 14, .74);
+  border-color: rgba(102, 136, 153, .13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.015);
+}
+
+.btc-platform-main .card:hover {
+  border-color: rgba(126, 157, 173, .22);
+}
+
+.btc-platform-main .btc-module-header {
+  position: relative;
+  min-height: 92px;
+  padding: 20px 22px 20px 26px;
+  border: 1px solid rgba(102,136,153,.14);
+  border-radius: 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(245,170,43,.04), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,.014), transparent),
+    rgba(6,11,15,.78);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.btc-platform-main .btc-module-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 17px;
+  bottom: 17px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(245,170,43,.9), rgba(55,230,211,.35));
+  box-shadow: 0 0 12px rgba(245,170,43,.12);
+}
+
+.btc-platform-main .btc-module-header h1 {
+  font-size: clamp(1.35rem, 2.1vw, 2rem);
+  font-weight: 620;
+  letter-spacing: -.035em;
+}
+
+.btc-platform-main button,
+.btc-platform-main a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 1180px) {
+  .btc-platform-header-main {
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .btc-platform-nav-link {
+    padding-left: 7px;
+    padding-right: 7px;
+    font-size: .66rem;
+  }
+
+  .btc-platform-wordmark small,
+  .btc-platform-source {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .btc-platform-header-main {
+    grid-template-columns: 1fr auto;
+  }
+
+  .btc-platform-nav {
+    display: none;
+  }
+
+  /* A navegação inferior é item do shell (não flutua sobre o conteúdo):
+     o padding grande de compensação deixou de ser necessário. */
+  .btc-platform-main {
+    padding: 16px 16px 24px;
+  }
+
+  .btc-platform-marketbar {
+    padding-right: 8px;
+  }
+
+  .btc-platform-live {
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 639px) {
+  .btc-platform-header-main {
+    min-height: 56px;
+    padding: 0 12px;
+  }
+
+  .btc-platform-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .btc-platform-wordmark strong {
+    font-size: .7rem;
+  }
+
+  .btc-platform-marketbar {
+    min-height: 31px;
+  }
+
+  .btc-platform-live {
+    padding: 0 10px 0 12px;
+  }
+
+  .btc-platform-marketitem {
+    padding: 0 10px;
+  }
+
+  .btc-platform-marketitem.hide-mobile,
+  .btc-platform-marketitem.hide-tablet {
+    display: none;
+  }
+
+  .btc-platform-main {
+    padding: 12px 10px 18px;
+  }
+
+  .btc-platform-main .btc-module-header {
+    min-height: 82px;
+    padding: 16px 16px 16px 20px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Overview · cinematic hero + dense market workstation
+   Uma cascata só: base (desktop) → tablet → mobile.
+   Sem gerações empilhadas, sem duplicatas, sem guerra de !important.
+   ───────────────────────────────────────────────────────────── */
+
+.btc-system-alert {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-left: 2px solid #f85149;
+  background: rgba(248, 81, 73, .055);
+  color: #c98989;
+  font-size: .72rem;
+}
+
+/* ── keyframes compartilhados (globais: a ordem de definição não importa) ── */
+@keyframes btc-live-pulse {
+  0%, 100% { opacity: .72; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1.13); }
+}
+
+@keyframes btc-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes btc-orbit-spin-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes btc-network-pulse {
+  0%, 100% { opacity: .7; transform: scale(.995); }
+  50% { opacity: 1; transform: scale(1.008); }
+}
+
+@keyframes btc-globe-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.025); }
+  50% { transform: translate3d(-9px, -4px, 0) scale(1.05); }
+}
+
+@keyframes btc-globe-sweep {
+  0%, 100% { transform: translate3d(-10%, 0, 0); opacity: .28; }
+  50% { transform: translate3d(10%, 0, 0); opacity: .68; }
+}
+
+/* Movimento: só onde reduz ansiedade (feedback de estado). Nada decorativo. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS Safari dá zoom automático em campos com fonte menor que 16px */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+.btc-overview-page {
+  width: 100%;
+  max-width: 1580px;
+  margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   Hero · base (desktop ≥ 1024px)
+   ═════════════════════════════════════════════════════════════ */
+
+.btc-cinematic-hero {
+  position: relative;
+  min-height: 470px;
+  overflow: hidden;
+  border: 1px solid rgba(71, 111, 130, .22);
+  border-radius: 14px;
+  background: #03080c;
+  isolation: isolate;
+}
+
+/* Véu de leitura do desktop: escurece a faixa do texto à esquerda. */
+.btc-cinematic-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #03080c 0%, rgba(3, 8, 12, .98) 23%, rgba(3, 8, 12, .76) 38%, rgba(3, 8, 12, .12) 66%, rgba(3, 8, 12, .22) 100%),
+    linear-gradient(180deg, rgba(3, 8, 12, .02), rgba(3, 8, 12, .05) 58%, rgba(3, 8, 12, .82) 100%);
+}
+
+/* Malha técnica decorativa. */
+.btc-cinematic-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(45, 95, 112, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 95, 112, .07) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .72), transparent 86%);
+}
+
+/* Globo 2D: no desktop é arte de fundo em bleed total. */
+.btc-cinematic-earth {
+  position: absolute;
+  inset: -2.5%;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+  opacity: .94;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+.btc-cinematic-earth img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 1;
+  filter: brightness(.82) contrast(1.08) saturate(1.04);
+  transform-origin: 72% 48%;
+  animation: btc-globe-breathe 14s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+.btc-cinematic-earth::after {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  background: linear-gradient(112deg, transparent 24%, rgba(55, 230, 211, .05) 47%, rgba(245, 170, 43, .09) 54%, transparent 67%);
+  mix-blend-mode: screen;
+  animation: btc-globe-sweep 9s ease-in-out infinite;
+}
+
+/* Host do globo 3D. Só existe no mobile (ver bloco ≤639px). */
+.btc-mobile-globe3d {
+  display: none;
+}
+
+.btc-cinematic-network {
+  position: absolute;
+  inset: 11% 8% 10% 44%;
+  border-radius: 50%;
+  opacity: .56;
+  background:
+    radial-gradient(circle at 27% 48%, rgba(245, 170, 43, .9) 0 2px, transparent 3px),
+    radial-gradient(circle at 53% 24%, rgba(55, 230, 211, .82) 0 2px, transparent 3px),
+    radial-gradient(circle at 71% 56%, rgba(245, 170, 43, .88) 0 2px, transparent 3px),
+    radial-gradient(circle at 44% 72%, rgba(55, 230, 211, .88) 0 2px, transparent 3px);
+  animation: btc-network-pulse 4.8s ease-in-out infinite;
+}
+
+.btc-cinematic-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 170, 43, .38);
+  box-shadow: 0 0 18px rgba(245, 170, 43, .07);
+  opacity: .25;
+}
+
+.btc-cinematic-orbit::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f5aa2b;
+  box-shadow: 0 0 13px rgba(245, 170, 43, .78);
+}
+
+.btc-cinematic-orbit.orbit-one {
+  inset: 8% 2% 9% 43%;
+  transform: rotate(-16deg);
+  animation: btc-orbit-spin 24s linear infinite;
+}
+
+.btc-cinematic-orbit.orbit-one::after {
+  top: 12%;
+  left: 17%;
+}
+
+.btc-cinematic-orbit.orbit-two {
+  inset: 17% 9% 18% 50%;
+  border-color: rgba(55, 230, 211, .28);
+  transform: rotate(27deg);
+  animation: btc-orbit-spin-reverse 18s linear infinite;
+}
+
+.btc-cinematic-orbit.orbit-two::after {
+  right: 7%;
+  bottom: 24%;
+  background: #37e6d3;
+  box-shadow: 0 0 13px rgba(55, 230, 211, .72);
+}
+
+.btc-cinematic-copy {
+  position: relative;
+  z-index: 6;
+  width: min(40%, 540px);
+  padding: 30px 0 84px 32px;
+}
+
+.btc-cinematic-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #31d8c6;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.btc-cinematic-kicker i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #31d8c6;
+  box-shadow: 0 0 12px rgba(49, 216, 198, .72);
+}
+
+.btc-news-brief {
+  max-width: 500px;
+  border-top: 1px solid rgba(91, 132, 149, .24);
+  border-bottom: 1px solid rgba(91, 132, 149, .18);
+  background: linear-gradient(90deg, rgba(6, 16, 22, .72), rgba(6, 16, 22, .16));
+}
+
+.btc-news-brief-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0 9px;
+  border-bottom: 1px solid rgba(91, 132, 149, .15);
+}
+
+.btc-news-brief-head h1 {
+  color: #eaf0f3;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  line-height: 1.2;
+}
+
+.btc-news-brief-head span {
+  flex: 0 0 auto;
+  color: #31d8c6;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .48rem;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.btc-news-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.btc-news-row {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 8px 12px 8px 14px;
+  border-bottom: 1px solid rgba(91, 132, 149, .1);
+  color: inherit;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease;
+}
+
+.btc-news-row:last-child { border-bottom: 0; }
+
+.btc-news-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: #73808a;
+}
+
+.btc-news-row.positive::before { background: #2fd6a2; }
+.btc-news-row.negative::before { background: #ff626b; }
+.btc-news-row:hover { background: rgba(255, 255, 255, .025); }
+
+.btc-news-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  color: #75818b;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .47rem;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.btc-news-meta b { color: #9aa5ac; font-weight: 600; }
+.btc-news-meta time { margin-left: auto; color: #75818b; }
+
+.btc-news-row strong {
+  display: block;
+  overflow: hidden;
+  color: #cfd7dc;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: .68rem;
+  font-weight: 550;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btc-news-row:first-child strong { color: #f3f6f7; font-size: .72rem; }
+
+.btc-news-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0;
+  color: #71808a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .58rem;
+}
+
+.btc-news-empty span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #31d8c6;
+  box-shadow: 0 0 10px rgba(49, 216, 198, .65);
+  animation: btc-live-pulse 2.2s ease-in-out infinite;
+}
+
+.btc-cinematic-price {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  justify-content: start;
+  gap: 2px 14px;
+  margin-top: 14px;
+}
+
+.btc-cinematic-price > span {
+  grid-column: 1 / -1;
+  color: #65717b;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .55rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+
+.btc-cinematic-price strong {
+  color: #f8fafb;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.65rem;
+  letter-spacing: -.04em;
+}
+
+.btc-cinematic-price em,
+.btc-float-card small.positive,
+.btc-dash-metric-line strong.up {
+  color: #27d6a0;
+}
+
+.btc-cinematic-price em.negative,
+.btc-float-card small.negative,
+.btc-dash-metric-line strong.down {
+  color: #ff626b;
+}
+
+.btc-cinematic-price em {
+  padding-bottom: 3px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .7rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.btc-cinematic-copy > small {
+  display: block;
+  margin-top: 5px;
+  color: #56626b;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .58rem;
+}
+
+/* Anatomia única dos quatro cards do hero: Hash Rate, Preço, Sentimento e
+   Regime Atual. Mesmo rótulo, mesmo valor, mesmo detalhe, mesmo rodapé. */
+.btc-float-card {
+  position: absolute;
+  z-index: 7;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  width: 176px;
+  min-height: 86px;
+  padding: 13px 15px;
+  border: 1px solid rgba(77, 138, 158, .32);
+  border-radius: 10px;
+  background: rgba(5, 14, 19, .82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 255, 255, .02);
+}
+
+.btc-float-card > span {
+  color: #78858e;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .51rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+}
+
+.btc-float-card > strong {
+  overflow: hidden;
+  color: #eef3f5;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .82rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btc-float-card > small {
+  overflow: hidden;
+  color: #8b98a3;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .56rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btc-float-card > small.btc-float-foot { color: #75818b; }
+
+.btc-float-hash {
+  top: 28px;
+  left: 40%;
+}
+
+.btc-float-price {
+  top: 28px;
+  left: calc(40% + 188px);
+}
+
+.btc-float-sentiment {
+  left: 40%;
+  bottom: 76px;
+}
+
+.btc-float-regime {
+  left: calc(40% + 188px);
+  bottom: 76px;
+}
+
+.btc-hero-data-strip {
+  position: absolute;
+  z-index: 9;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr .85fr 1fr;
+  min-height: 54px;
+  border-top: 1px solid rgba(76, 111, 127, .18);
+  background: rgba(2, 7, 10, .91);
+  backdrop-filter: blur(14px);
+}
+
+.btc-hero-data-strip > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 15px;
+  border-right: 1px solid rgba(76, 111, 127, .12);
+}
+
+.btc-hero-data-strip > div:last-child { border-right: 0; }
+
+.btc-hero-data-strip span {
+  color: #50606a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .5rem;
+  letter-spacing: .09em;
+}
+
+.btc-hero-data-strip strong,
+.btc-hero-data-strip em {
+  overflow: hidden;
+  color: #dce3e7;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .64rem;
+  font-style: normal;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btc-hero-data-strip em {
+  margin-left: auto;
+  color: #2fd6a2;
+}
+
+.btc-workstation-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(190px, auto));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.btc-chart-zone {
+  grid-column: 1 / 7;
+  grid-row: 1 / 3;
+  min-height: 392px;
+}
+
+.btc-chart-zone .card {
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(9, 20, 25, .92), rgba(4, 10, 14, .95));
+  border-color: rgba(72, 122, 140, .25);
+}
+
+.btc-chart-zone .recharts-cartesian-grid-horizontal line {
+  stroke: rgba(74, 105, 120, .16);
+}
+
+.btc-dash-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(72, 122, 140, .23);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(44, 199, 174, .035), transparent 38%),
+    linear-gradient(180deg, rgba(9, 20, 25, .93), rgba(4, 10, 14, .94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .018);
+}
+
+.btc-consensus-card {
+  grid-column: 7 / 10;
+  grid-row: 1;
+}
+
+.btc-derivatives-card {
+  grid-column: 7 / 10;
+  grid-row: 2;
+}
+
+.btc-macro-card {
+  grid-column: 10 / 13;
+  grid-row: 1;
+}
+
+.btc-onchain-card {
+  grid-column: 10 / 13;
+  grid-row: 2;
+}
+
+.btc-dash-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.btc-dash-card-head span {
+  color: #5e6d76;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .49rem;
+  letter-spacing: .11em;
+}
+
+.btc-dash-card-head h3 {
+  margin-top: 3px;
+  color: #eef2f4;
+  font-size: .82rem;
+  font-weight: 650;
+}
+
+.btc-dash-card-head a {
+  color: #65757f;
+  font-size: .58rem;
+  text-decoration: none;
+}
+
+.btc-dash-card-head a:hover { color: #f1ab32; }
+
+.btc-card-feature {
+  padding: 8px 0 10px;
+  border-bottom: 1px solid rgba(70, 104, 120, .15);
+}
+
+.btc-card-feature span {
+  display: block;
+  color: #5b6972;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .5rem;
+  letter-spacing: .1em;
+}
+
+.btc-card-feature strong {
+  display: block;
+  margin-top: 3px;
+  color: #33d8a3;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.05rem;
+}
+
+.btc-dash-metric-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(70, 104, 120, .1);
+}
+
+.btc-dash-metric-line:last-child { border-bottom: 0; }
+
+.btc-dash-metric-line span {
+  color: #82909a;
+  font-size: .65rem;
+}
+
+.btc-dash-metric-line strong {
+  color: #e2e8eb;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .65rem;
+  font-weight: 600;
+}
+
+.btc-consensus-main { display: flex; align-items: center; gap: 12px; padding: 6px 0 12px; }
+
+.btc-consensus-score {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  width: 82px;
+  height: 82px;
+  padding-top: 23px;
+  border: 8px solid rgba(58, 213, 177, .24);
+  border-top-color: #f1b54a;
+  border-right-color: #55e0c0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 18px rgba(49, 216, 198, .05);
+}
+
+.btc-consensus-score strong { color: #f2f5f6; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.1rem; }
+.btc-consensus-score span { color: #6c7a83; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .52rem; }
+.btc-consensus-main > div:last-child { display: grid; }
+.btc-consensus-main b { color: #dce3e7; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .76rem; }
+.btc-consensus-main b.positive { color: #2fd6a2; }
+.btc-consensus-main b.negative { color: #ff626b; }
+.btc-consensus-main small { margin-top: 3px; color: #68757e; font-size: .58rem; }
+
+.btc-consensus-rows { display: grid; gap: 6px; }
+.btc-consensus-rows > div { display: grid; grid-template-columns: 44px 1fr 58px; align-items: center; gap: 7px; }
+.btc-consensus-rows span, .btc-consensus-rows strong { color: #81909a; font-size: .58rem; }
+.btc-consensus-rows strong { color: #cbd4d9; font-family: 'JetBrains Mono', ui-monospace, monospace; text-align: right; }
+.btc-consensus-bar { height: 4px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, .06); }
+.btc-consensus-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #24c991, #4fc7ae); }
+
+.btc-highlight-zone { margin-top: 17px; }
+.btc-highlight-title { margin-bottom: 8px; color: #aab4ba; font-size: .64rem; font-weight: 650; letter-spacing: .05em; }
+.btc-highlight-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+
+.btc-highlight-card {
+  position: relative;
+  min-height: 98px;
+  padding: 13px 32px 13px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(72, 122, 140, .2);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(16, 46, 52, .46), rgba(5, 11, 15, .92) 53%);
+  text-decoration: none;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.btc-highlight-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 170, 43, .32);
+  background: linear-gradient(135deg, rgba(20, 60, 65, .56), rgba(6, 12, 16, .95) 56%);
+}
+
+.btc-highlight-card > span { color: #38d9c4; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .47rem; letter-spacing: .1em; text-transform: uppercase; }
+.btc-highlight-card > strong { display: block; margin-top: 4px; color: #eff3f5; font-size: .72rem; }
+.btc-highlight-card > p { margin-top: 5px; color: #7f8d96; font-size: .61rem; line-height: 1.45; }
+.btc-highlight-card > i { position: absolute; right: 11px; top: 11px; color: #6f7c84; font-size: .72rem; font-style: normal; }
+
+/* TradingView: o iframe herda a moldura do card do gráfico. */
+.btc-tv-host {
+  flex: 1;
+  min-height: 330px;
+  overflow: hidden;
+  border: 1px solid rgba(72, 122, 140, .22);
+  border-radius: 10px;
+  background: #050a0e;
+}
+
+.btc-tv-host .tradingview-widget-container,
+.btc-tv-host .tradingview-widget-container__widget {
+  height: 100%;
+  width: 100%;
+}
+
+.btc-tv-host iframe { display: block; border: 0; }
+
+.btc-tradingview-link {
+  color: #71808a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .58rem;
+  letter-spacing: .02em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .15s ease;
+}
+
+.btc-tradingview-link:hover { color: #f5aa2b; }
+
+/* ═════════════════════════════════════════════════════════════
+   Hero · tablet (≤ 1180px e ≤ 1023px)
+   ═════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1180px) {
+  .btc-cinematic-copy { width: 43%; }
+  .btc-float-hash, .btc-float-sentiment { left: 44%; }
+  .btc-float-price, .btc-float-regime { left: calc(44% + 188px); }
+}
+
+@media (max-width: 1023px) {
+  .btc-cinematic-hero { min-height: 720px; }
+  .btc-cinematic-copy { width: 62%; padding: 28px 0 260px 26px; }
+  .btc-cinematic-earth { inset: 40px -70px 80px 8%; }
+  .btc-cinematic-earth img { object-position: 62% center; opacity: .75; }
+  .btc-cinematic-hero::before {
+    background: linear-gradient(180deg, rgba(3, 8, 12, .9) 0%, rgba(3, 8, 12, .64) 42%, rgba(3, 8, 12, .88) 72%, #03080c 100%);
+  }
+
+  .btc-float-card { width: calc(50% - 26px); min-width: 0; }
+  .btc-float-hash { left: 18px; top: auto; bottom: 172px; }
+  .btc-float-price { left: auto; right: 18px; top: auto; bottom: 172px; }
+  .btc-float-sentiment { left: 18px; right: auto; bottom: 72px; }
+  .btc-float-regime { left: auto; right: 18px; top: auto; bottom: 72px; }
+
+  .btc-hero-data-strip { grid-template-columns: repeat(3, 1fr); }
+  .btc-hero-data-strip > div:nth-child(4),
+  .btc-hero-data-strip > div:nth-child(5) { display: none; }
+
+  .btc-workstation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .btc-chart-zone { grid-column: 1 / -1; grid-row: auto; min-height: 420px; }
+  .btc-consensus-card, .btc-derivatives-card, .btc-macro-card, .btc-onchain-card { grid-column: auto; grid-row: auto; }
+  .btc-highlight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ═════════════════════════════════════════════════════════════
+   Hero · mobile (≤ 639px)
+   Fluxo vertical declarado. Nada de posicionamento absoluto para
+   conteúdo: globo, preço, notícias e cards ocupam faixas próprias,
+   então não existe sobreposição possível.
+   ═════════════════════════════════════════════════════════════ */
+
+@media (max-width: 639px) {
+  .btc-cinematic-hero {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 10px;
+    min-height: 0;
+    padding: 16px 12px;
+    border-radius: 12px;
+  }
+
+  /* Véu de leitura do mobile: atrás de todo o conteúdo. */
+  .btc-cinematic-hero::before {
+    z-index: 0;
+    background: linear-gradient(180deg, rgba(3, 8, 12, .62) 0%, rgba(3, 8, 12, .18) 34%, rgba(3, 8, 12, .58) 72%, #03080c 100%);
+  }
+
+  .btc-cinematic-hero::after { display: none; }
+
+  /* Toda a prole entra no fluxo do grid, acima do véu. */
+  .btc-cinematic-hero > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* --- Globo: faixa 1, circular, centralizado --- */
+  .btc-cinematic-earth {
+    order: 1;
+    grid-column: 1 / -1;
+    inset: auto;
+    width: min(66vw, 280px);
+    height: min(66vw, 280px);
+    max-width: 100%;
+    margin: 2px auto 0;
+    border-radius: 50%;
+    overflow: hidden;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    touch-action: pan-y;
+    transition: transform .5s cubic-bezier(.22, .61, .36, 1), opacity .5s ease;
+    will-change: transform;
+  }
+
+  .btc-cinematic-earth img {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 50%;
+    opacity: 1;
+    filter: brightness(.95) contrast(1.06) saturate(1.06);
+    transform-origin: center;
+  }
+
+  /* Fallback 2D: sem animação de respiração, e cede lugar quando o 3D assume. */
+  .btc-cinematic-earth:not(.is-3d) img { animation: none; }
+  .btc-cinematic-earth.is-3d img { opacity: 0; }
+
+  .btc-cinematic-earth::after { display: none; }
+
+  .btc-mobile-globe3d {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: 50%;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .35s ease;
+  }
+
+  .btc-mobile-globe3d.is-active { opacity: 1; }
+
+  .btc-mobile-globe3d canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Reação ao scroll: o globo recua quando a página desce. */
+  .btc-cinematic-hero.is-scrolling .btc-cinematic-earth {
+    transform: scale(.86) translateY(-14px);
+    opacity: .72;
+  }
+
+  .btc-cinematic-network { inset: 6%; opacity: .42; }
+  .btc-cinematic-orbit { opacity: .2; }
+  .btc-cinematic-orbit.orbit-one { inset: 0 2%; }
+  .btc-cinematic-orbit.orbit-two { inset: 8% 8%; }
+
+  /* --- Copy: faixa 2 (preço → timestamp → notícias) --- */
+  .btc-cinematic-copy {
+    order: 2;
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0;
+  }
+
+  .btc-cinematic-kicker { order: 1; margin: 2px 2px 0; }
+
+  .btc-cinematic-price {
+    order: 2;
+    position: static;
+    width: auto;
+    margin: 0;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .btc-cinematic-price strong { font-size: 1.75rem; }
+
+  .btc-cinematic-copy > small {
+    order: 3;
+    position: static;
+    width: auto;
+    margin: 4px 0 0;
+    text-align: center;
+  }
+
+  .btc-news-brief {
+    order: 4;
+    position: static;
+    max-width: none;
+    margin-top: 8px;
+  }
+
+  .btc-news-row { padding: 8px 10px 8px 12px; }
+  .btc-news-meta { gap: 6px; }
+  .btc-news-meta span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .btc-news-row strong,
+  .btc-news-row:first-child strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: .68rem;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  /* --- Cards de métrica: faixas 3 e 4, duas colunas --- */
+  .btc-float-card {
+    inset: auto;
+    width: auto;
+    min-width: 0;
+    min-height: 84px;
+    padding: 11px 12px;
+  }
+
+  .btc-float-hash { order: 3; grid-column: 1; }
+  .btc-float-price { order: 4; grid-column: 2; }
+  .btc-float-sentiment { order: 5; grid-column: 1; }
+  .btc-float-regime { order: 6; grid-column: 2; }
+
+  /* --- Faixa de dados: última linha do fluxo, sem scroll horizontal --- */
+  .btc-hero-data-strip {
+    order: 7;
+    grid-column: 1 / -1;
+    position: relative;
+    inset: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+    margin-top: 2px;
+    border-top: 1px solid rgba(76, 111, 127, .2);
+    background: rgba(2, 7, 10, .72);
+  }
+
+  .btc-hero-data-strip > div {
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 9px 10px;
+    border-right: 1px solid rgba(76, 111, 127, .12);
+    border-bottom: 1px solid rgba(76, 111, 127, .12);
+  }
+
+  .btc-hero-data-strip > div:nth-child(2n) { border-right: 0; }
+
+  .btc-hero-data-strip > div:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .btc-hero-data-strip em { margin-left: 0; }
+
+  /* --- Workstation abaixo do hero --- */
+  .btc-workstation-grid { grid-template-columns: minmax(0, 1fr); }
+  .btc-chart-zone { min-height: 340px; }
+  .btc-tv-host { min-height: 300px; }
+  .btc-highlight-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Portrait phone: composição compacta e deliberadamente separada do landscape.
+   O landscape continua usando a anatomia desktop/tablet. */
+@media (max-width: 639px) and (orientation: portrait) {
+  .btc-cinematic-hero {
+    gap: 8px;
+    padding: 12px 10px 14px;
+  }
+
+  .btc-cinematic-earth {
+    width: min(54vw, 224px);
+    height: min(54vw, 224px);
+    margin-top: 0;
+  }
+
+  /* A arte-fonte é 16:9 e o globo está deslocado para a direita. No portrait,
+     o crop quadrado precisa preservar essa área, sem alterar o landscape. */
+  .btc-cinematic-earth img {
+    object-position: 72% center;
+  }
+
+  .btc-cinematic-kicker {
+    margin: 0 2px;
+    font-size: .54rem;
+  }
+
+  .btc-cinematic-price {
+    margin-top: 1px;
+  }
+
+  .btc-cinematic-price strong {
+    font-size: 1.62rem;
+  }
+
+  .btc-news-brief {
+    margin-top: 6px;
+  }
+
+  .btc-news-row {
+    padding: 7px 9px 7px 11px;
+  }
+
+  .btc-news-row strong,
+  .btc-news-row:first-child strong {
+    font-size: .65rem;
+    line-height: 1.3;
+  }
+
+  .btc-float-card {
+    min-height: 78px;
+    padding: 9px 10px;
+    gap: 2px;
+  }
+
+  .btc-float-card > strong { font-size: .76rem; }
+  .btc-float-card > small { font-size: .52rem; }
+
+  .btc-hero-data-strip {
+    margin-top: 0;
+  }
+
+  .btc-hero-data-strip > div {
+    padding: 8px 9px;
+  }
+}

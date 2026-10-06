@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { collectMacroContext, scoreMacroQuality } from "../src/lib/macro-context";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { collectMacroContext, fetchMultiEndpoint, scoreMacroQuality } from "../src/lib/macro-context";
 
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
@@ -9,6 +9,7 @@ function json(value: unknown, status = 200) {
 }
 
 describe("macro-context integration", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("prefere Service Binding e normaliza macro + cross-asset", async () => {
     const seen: string[] = [];
     const env = {
@@ -77,5 +78,23 @@ describe("macro-context integration", () => {
     expect(quality.score).toBe(65);
     expect(quality.state).toBe("degraded");
     expect(quality.issues).toContain("macro:unavailable");
+  });
+
+  it("faz fallback publico quando o Service Binding falha", async () => {
+    const env = {
+      SZ_SITES: {
+        async fetch() {
+          throw new Error("The operation was aborted");
+        },
+      },
+    } as any;
+
+    vi.stubGlobal("fetch", async () => json({ ok: true, ts: 1790628246, source: "BCB" }));
+    const out = await fetchMultiEndpoint(env, "/assets/macro.php", 50);
+
+    expect(out.ok).toBe(true);
+    expect(out.status).toBe(200);
+    expect(out.via).toBe("public-fetch");
+    expect(out.error).toBeNull();
   });
 });

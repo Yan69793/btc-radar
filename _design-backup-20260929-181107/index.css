@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* BTC Radar · sistema visual.
+   Base: near-black quase acromático, bordas translúcidas, um único acento
+   cromático (dourado da marca). Sem glow, sem orbe, sem gradiente decorativo. */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv01', 'ss03', 'tnum';
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: #08090a;
+    color: #f7f8f8;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(232, 179, 58, 0.24);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(232, 179, 58, 0.6);
+    outline-offset: 2px;
+  }
+
+  /* Display: Space Grotesk carrega a personalidade da marca. Inter fica
+     reservado a corpo/rótulo, mono a dado tabular. Três papéis, não dois. */
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  /* Superfície: nunca cor sólida, sempre branco translúcido sobre o near-black */
+  .card {
+    background: rgba(255, 255, 255, 0.022);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+  }
+
+  .card-interactive {
+    @apply card transition-colors duration-150;
+  }
+
+  .card-interactive:hover {
+    background: rgba(255, 255, 255, 0.038);
+    border-color: rgba(255, 255, 255, 0.11);
+  }
+
+  /* Rótulo técnico: mono, caixa alta, tracking largo */
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #62666d;
+  }
+
+  /* Carimbo de veredito: a assinatura visual do BTC Radar. Mono, caixa alta,
+     régua grossa embaixo em vez de pill arredondado. Repete igual em toda
+     tela que mostra COMPRAR/VENDER/AGUARDAR/REDUZIR. */
+  .verdict-stamp {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2em 0;
+    border-bottom: 2px solid currentColor;
+  }
+
+  /* Dado numérico: mono com tabular figures para coluna alinhada */
+  .metric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Semântico de mercado: cor dessaturada, sem brilho */
+  .verdict-buy { color: #3fb950; }
+  .verdict-sell { color: #f85149; }
+  .verdict-neutral { color: #8a8f98; }
+
+  .rule-top {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .shimmer-loading {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer utilities {
+  .ring-glow-green { box-shadow: 0 0 0 1px rgba(63, 185, 80, 0.4); }
+  .ring-glow-red { box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.4); }
+
+  /* 100vh no iOS Safari inclui a barra de endereco; dvh corrige */
+  .h-dvh-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
+/* Movimento: só onde reduz ansiedade (feedback de estado). Nada decorativo. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS Safari da zoom automatico em campos com fonte menor que 16px */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

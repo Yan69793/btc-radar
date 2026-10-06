@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { useApi } from '../hooks/useApi'
 import { asset } from '../lib/assets'
+import { getScrollParent, readScrollTop } from '../lib/scroll'
+import { MobileGlobe } from './MobileGlobe'
 import { fmtPct, fmtPrice, fmtTimeAgo } from '../lib/formatters'
 import type { FearGreedData, PriceSnapshot } from '../types'
 
@@ -64,6 +67,7 @@ function compactHashRate(value: number | null | undefined) {
 }
 
 export function TechHero({ price, fearGreed, loading = false }: Props) {
+  const heroRef = useRef<HTMLElement | null>(null)
   const { data: scenarios } = useApi<ScenarioResponse>('/api/scenarios', 300_000)
   const { data: signals } = useApi<SignalsResponse>('/api/signals', 300_000)
   const { data: derivatives } = useApi<DerivativesSnapshot>('/api/derivatives', 300_000)
@@ -71,6 +75,27 @@ export function TechHero({ price, fearGreed, loading = false }: Props) {
   const { data: news } = useApi<NewsItem[]>('/api/news?filter=hot&limit=4', 300_000)
 
   const regime = scenarios?.current_regime
+
+  // O painel rola dentro de `.btc-platform-main`, não no documento: escutar a
+  // janela deixava `is-scrolling` permanentemente falso. O container real é
+  // resolvido a partir do próprio hero.
+  useEffect(() => {
+    const hero = heroRef.current
+    if (!hero) return
+    const scroller = getScrollParent(hero)
+    const target: HTMLElement | Window = scroller ?? window
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => hero.classList.toggle('is-scrolling', readScrollTop(scroller) > 24))
+    }
+    target.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => {
+      cancelAnimationFrame(raf)
+      target.removeEventListener('scroll', onScroll)
+    }
+  }, [])
   const consensus = signals?.consensus
   const positive = (price?.change_24h ?? 0) >= 0
   const regimeTone = regime?.trend === 'bull' ? 'positive' : regime?.trend === 'bear' ? 'negative' : ''
@@ -85,9 +110,10 @@ export function TechHero({ price, fearGreed, loading = false }: Props) {
         : 'Mercado sem tendência dominante. Convicção deve vir da convergência entre sinais, derivativos e macro.'
 
   return (
-    <section className="btc-cinematic-hero" aria-labelledby="btc-cinematic-title">
+    <section ref={heroRef} className="btc-cinematic-hero" aria-labelledby="btc-cinematic-title">
       <div className="btc-cinematic-earth" aria-hidden="true">
         <img src={asset('/assets/btc-tech-globe-user.png')} alt="" />
+        <MobileGlobe />
         <div className="btc-cinematic-network" />
         <div className="btc-cinematic-orbit orbit-one" />
         <div className="btc-cinematic-orbit orbit-two" />

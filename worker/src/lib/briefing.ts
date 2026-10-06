@@ -8,7 +8,7 @@ interface BriefingData {
   price: { current: number; change_24h: number; high_24h: number; low_24h: number; volume_24h: number };
   fear_greed: { value: number; classification: string } | null;
   onchain: { block_height: number; hash_rate: number | null; avg_fee_sats: number | null } | null;
-  derivatives: { funding_rate: number; funding_annualized: number; open_interest_usd: number } | null;
+  derivatives: { funding_rate: number | null; funding_annualized: number | null; open_interest_usd: number | null } | null;
   signals: Array<{ strategy: string; verdict: string; timeframe: string; conviction: number }>;
   trades_closed_7d: Array<{ strategy: string; direction: string; pnl_pct: number }>;
   btc_7d: Array<{ date: string; close: number }>;
@@ -122,9 +122,9 @@ async function collectData(env: Env): Promise<BriefingData> {
     const derivRaw = await env.KV.get("btc:derivatives:v1", "json") as Record<string, unknown> | null;
     if (derivRaw) {
       data.derivatives = {
-        funding_rate: derivRaw.funding_rate as number,
-        funding_annualized: derivRaw.funding_rate_annualized as number,
-        open_interest_usd: derivRaw.open_interest_usd as number,
+        funding_rate: derivRaw.funding_rate != null ? Number(derivRaw.funding_rate) : null,
+        funding_annualized: derivRaw.funding_rate_annualized != null ? Number(derivRaw.funding_rate_annualized) : null,
+        open_interest_usd: derivRaw.open_interest_usd != null ? Number(derivRaw.open_interest_usd) : null,
       };
     }
   } catch { /* segue */ }
@@ -148,7 +148,7 @@ async function collectData(env: Env): Promise<BriefingData> {
   }
 
   // Fallback: buscar open interest via OKX
-  if (data.derivatives && data.derivatives.open_interest_usd === 0) {
+  if (data.derivatives && (data.derivatives.open_interest_usd == null || data.derivatives.open_interest_usd === 0)) {
     try {
       const oiRes = await fetch("https://www.okx.com/api/v5/public/open-interest?instId=BTC-USDT-SWAP");
       if (oiRes.ok) {
@@ -287,9 +287,16 @@ function buildBriefingText(data: BriefingData): string {
 
   // ─── Paragrafo 2: Derivativos ───
   let p2 = "";
-  if (deriv) {
+  if (deriv && deriv.funding_rate != null && Number.isFinite(deriv.funding_rate)) {
     const fundingPct = deriv.funding_rate * 100;
-    const oiBi = deriv.open_interest_usd / 1e9;
+    const fundingAnnualized =
+      deriv.funding_annualized != null && Number.isFinite(deriv.funding_annualized)
+        ? deriv.funding_annualized
+        : deriv.funding_rate * 3 * 365 * 100;
+    const oiBi =
+      deriv.open_interest_usd != null && Number.isFinite(deriv.open_interest_usd)
+        ? deriv.open_interest_usd / 1e9
+        : 0;
 
     // Interpretacao baseada em thresholds
     let fundingInterpretation: string;
@@ -305,7 +312,7 @@ function buildBriefingText(data: BriefingData): string {
       fundingInterpretation = "mercado equilibrado entre longs e shorts";
     }
 
-    p2 = `Funding rate ${fundingPct > 0 ? "+" : ""}${fundingPct.toFixed(3)}% (${deriv.funding_annualized.toFixed(1)}% aa): ${fundingInterpretation}.`;
+    p2 = `Funding rate ${fundingPct > 0 ? "+" : ""}${fundingPct.toFixed(3)}% (${fundingAnnualized.toFixed(1)}% aa): ${fundingInterpretation}.`;
 
     if (oiBi > 0.01) {
       p2 += ` Open interest de US$ ${oiBi.toFixed(2)} bi.`;

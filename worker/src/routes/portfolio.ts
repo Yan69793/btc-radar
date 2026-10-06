@@ -6,12 +6,24 @@ import { Hono } from "hono";
 import type { Env } from "../types";
 import type { PortfolioSnapshot, PortfolioCurrent, Trade } from "../types";
 import { fetchOKXTicker } from "../lib/okx";
+import { bearerToken, getSession } from "../lib/auth";
 
 export const portfolioRoutes = new Hono<{ Bindings: Env }>();
+
+async function requireUser(c: any) {
+  return getSession(c.env, bearerToken(c.req.header("Authorization")));
+}
+
+function authRequired(c: any) {
+  return c.json({ success: false, data: null, error: "Faca login para acessar seu portfolio.", timestamp: new Date().toISOString() }, 401);
+}
 
 // GET /api/portfolio — estado atual consolidado
 portfolioRoutes.get("/", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     // Buscar trades abertos
     const openResult = await c.env.DB.prepare(
       "SELECT * FROM trades WHERE status = 'open' ORDER BY entry_date DESC"
@@ -36,8 +48,8 @@ portfolioRoutes.get("/", async (c) => {
 
     // Buscar ultimo snapshot
     const lastSnapshot = await c.env.DB.prepare(
-      "SELECT * FROM portfolio_snapshots ORDER BY timestamp DESC LIMIT 1"
-    ).first<Record<string, unknown>>();
+      "SELECT * FROM portfolio_snapshots WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1"
+    ).bind(session.user_id).first<Record<string, unknown>>();
 
     // Preco atual BTC
     let btcPrice = 0;
@@ -107,6 +119,9 @@ portfolioRoutes.get("/", async (c) => {
 // POST /api/portfolio/snapshot — registrar snapshot manual de balances
 portfolioRoutes.post("/snapshot", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const body = await c.req.json<{
       btc_balance?: number;
       usd_balance?: number;
@@ -136,10 +151,10 @@ portfolioRoutes.post("/snapshot", async (c) => {
     const now = new Date().toISOString();
 
     await c.env.DB.prepare(
-      `INSERT INTO portfolio_snapshots (timestamp, btc_balance, usd_balance, btc_price, total_value_usd)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO portfolio_snapshots (user_id, timestamp, btc_balance, usd_balance, btc_price, total_value_usd)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
-      .bind(now, btc, usd, btcPrice, total)
+      .bind(session.user_id, now, btc, usd, btcPrice, total)
       .run();
 
     const snapshot: PortfolioSnapshot = {
@@ -163,10 +178,13 @@ portfolioRoutes.post("/snapshot", async (c) => {
 // GET /api/portfolio/history — historico de snapshots
 portfolioRoutes.get("/history", async (c) => {
   try {
+    const session = await requireUser(c);
+    if (!session) return authRequired(c);
+
     const limit = Math.min(parseInt(c.req.query("limit") || "30", 10), 100);
     const result = await c.env.DB.prepare(
-      "SELECT * FROM portfolio_snapshots ORDER BY timestamp DESC LIMIT ?"
-    ).bind(limit).all();
+      "SELECT * FROM portfolio_snapshots WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?"
+    ).bind(session.user_id, limit).all();
 
     const snapshots: PortfolioSnapshot[] = (result.results || []).map((r: Record<string, unknown>) => ({
       timestamp: r.timestamp as string,
