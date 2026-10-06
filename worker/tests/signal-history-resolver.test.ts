@@ -94,8 +94,9 @@ describe("signal-history: resolveProspectively (regras de resolução)", () => {
       series: s,
     });
     expect(r.entry_candle).not.toBeNull();
-    // primeiro candle após 09:30 é o 10 (10:00) — close = 100 + 10 = 110
-    expect(r.entry_candle!.close).toBeCloseTo(110);
+    // timestamp é abertura. Candle09 fecha às10, primeiro close após09:30.
+    expect(r.entry_candle!.close).toBeCloseTo(109);
+    expect(r.entry_candle!.timestamp).toBe("2026-02-01T09:00:00.000Z");
   });
 
   it("long direto no target_2: 2 outcomes 50% cada, ambos lucram", () => {
@@ -131,7 +132,7 @@ describe("signal-history: resolveProspectively (regras de resolução)", () => {
     // no close do candle 1. Para controle, ajustamos a série para que a entrada real seja
     // exatamente 100 (candle1 close=100), depois target_1 a 110 (10% a mais) e depois
     // stop a 90 (10% a menos).
-    const genAt = new Date(new Date(baseTs).getTime() - 3600_000).toISOString();
+    const genAt = baseTs;
     // hora -1: sinal gerado ANTES do primeiro candle.
     const prices: number[] = [];
     prices.push(100);                 // candle 0 (hora 0) close = 100 → será o entry real).
@@ -159,11 +160,14 @@ describe("signal-history: resolveProspectively (regras de resolução)", () => {
     for (const o of r.outcomes) (byStatus[o.status] ||= []).push(o);
     expect(byStatus.target_1).toBeDefined();
     expect(byStatus.stop_loss).toBeDefined();
-    // Resultado ponderado: +10% × 0.5 + (-10%) × 0.5 = 0
+    // O candle do stop abre em 89, abaixo do stop teórico de 90: é um gap-through.
+    // A regra conservadora preenche na abertura (89), não no nível do stop (90). O stop
+    // rende então -11% e o resultado ponderado é +10%×0.5 + (-11%)×0.5 = -0.5.
+    expect(byStatus.stop_loss![0].resolved_price).toBeCloseTo(89, 10);
     const weighted =
       byStatus.target_1![0].net_return_pct * byStatus.target_1![0].position_fraction +
       byStatus.stop_loss![0].net_return_pct * byStatus.stop_loss![0].position_fraction;
-    expect(weighted).toBeCloseTo(0, 1);
+    expect(weighted).toBeCloseTo(-0.5, 10);
   });
 
   it("regra 4: candle ambíguo (stop e target no mesmo candle) → resolve só stop primeiro", () => {
@@ -314,6 +318,72 @@ describe("signal-history: resolveProspectively (regras de resolução)", () => {
     expect(gap!.resolved_at).toBe(exp);
     expect(r.closed_fraction).toBeCloseTo(1);
     expect(r.has_gap).toBe(true);
+  });
+
+  it("F01: stop e alvo que abrem além do nível executam no preço de abertura (gap-through)", () => {
+    const genAt = baseTs;
+    const mk = (i: number, o: number, h: number, l: number, c: number): OHLCV => ({
+      timestamp: new Date(new Date(baseTs).getTime() + i * 3600_000).toISOString(),
+      open: o, high: h, low: l, close: c, volume: 10, interval: "1h", source: "test",
+    });
+
+    // Stop gap-through: o candle 2 abre em 85, abaixo do stop de 90.
+    const stopRun = resolveProspectively({
+      signal: {
+        signal_id: "sig-gap-stop", direction: "long", entry_price: 100,
+        stop_loss: 90, target_1: 130, target_2: 140,
+        generated_at: genAt, expires_at: computeExpiresAt(genAt, "short"),
+        strategy: "x", timeframe: "short", strategy_version: "1", engine_version: "1",
+      },
+      series: [mk(0, 100, 100.5, 99.5, 100), mk(1, 98, 99, 97, 98), mk(2, 85, 86, 84, 85)],
+      feePerSide: 0, slippagePct: 0,
+    });
+    const stop = stopRun.outcomes.find(o => o.status === "stop_loss")!;
+    expect(stop.resolved_price).toBeCloseTo(85, 10); // abertura, não 90
+    expect(stop.net_return_pct).toBeCloseTo(-15, 10); // (85/100-1)*100
+
+    // Alvo gap-through: o candle 2 abre em 120, acima dos dois alvos.
+    const targetRun = resolveProspectively({
+      signal: {
+        signal_id: "sig-gap-target", direction: "long", entry_price: 100,
+        stop_loss: 80, target_1: 110, target_2: 115,
+        generated_at: genAt, expires_at: computeExpiresAt(genAt, "short"),
+        strategy: "x", timeframe: "short", strategy_version: "1", engine_version: "1",
+      },
+      series: [mk(0, 100, 100.5, 99.5, 100), mk(1, 100, 100.5, 99.5, 100), mk(2, 120, 125, 118, 120)],
+      feePerSide: 0, slippagePct: 0,
+    });
+    const targets = targetRun.outcomes.filter(o => o.status === "target_1" || o.status === "target_2");
+    expect(targets).toHaveLength(2);
+    for (const o of targets) expect(o.resolved_price).toBeCloseTo(118, 10); // low=118 > alvo teórico
+    expect(targetRun.closed_fraction).toBeCloseTo(1);
+  });
+
+  it("F06: candle ausente no meio da série vira data_gap sem inventar preço", () => {
+    const genAt = baseTs;
+    const mk = (i: number): OHLCV => ({
+      timestamp: new Date(new Date(baseTs).getTime() + i * 3600_000).toISOString(),
+      open: 100, high: 100.5, low: 99.5, close: 100, volume: 10, interval: "1h", source: "test",
+    });
+    // Falta o candle da hora +2 (buraco interno na série).
+    const r = resolveProspectively({
+      signal: {
+        signal_id: "sig-gap-internal", direction: "long", entry_price: 100,
+        stop_loss: 80, target_1: 130, target_2: 150,
+        generated_at: genAt, expires_at: computeExpiresAt(genAt, "short"),
+        strategy: "x", timeframe: "short", strategy_version: "1", engine_version: "1",
+      },
+      series: [mk(0), mk(1), mk(3)],
+      feePerSide: 0, slippagePct: 0,
+    });
+    expect(r.has_gap).toBe(true);
+    expect(r.notes.some(n => n.includes("candle ausente"))).toBe(true);
+    const gap = r.outcomes.find(o => o.status === "data_gap")!;
+    expect(gap).toBeDefined();
+    expect(gap.resolved_price).toBe(0);
+    expect(gap.net_return_pct).toBeNull();
+    expect(gap.position_fraction).toBeCloseTo(1);
+    expect(r.closed_fraction).toBeCloseTo(1);
   });
 
 });

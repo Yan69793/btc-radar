@@ -42,6 +42,8 @@ export async function fetchKrakenOHLCV(
   if (!Array.isArray(rows)) throw new Error("Kraken OHLC payload ausente");
 
   return (rows as KrakenRow[]).slice(-Math.max(1, limit)).map((k) => ({
+    // F11: k[0] = abertura UTC do candle (a última linha pode ser o candle em
+    // FORMAÇÃO; timestamp = abertura em todos os providers).
     timestamp: new Date(k[0] * 1000).toISOString(),
     open: parseFloat(k[1]),
     high: parseFloat(k[2]),

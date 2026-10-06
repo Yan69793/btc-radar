@@ -18,7 +18,7 @@ import type { SignalDocument, Timeframe, Verdict, OHLCV } from "../types";
 
 export const HISTORY_STRATEGY_VERSION = "1.0.0";
 export const HISTORY_ENGINE_VERSION = "1.0.0";
-export const HISTORY_RESOLVER_VERSION = "1.0.0";
+export const HISTORY_RESOLVER_VERSION = "1.1.0";
 export const DEFAULT_FEE_PER_SIDE = 0.001; // 0.1% por lado
 export const DEFAULT_SLIPPAGE_PCT = 0.0;    // explicitamente parametrizado
 
@@ -151,6 +151,25 @@ export interface ResolverInput {
   feePerSide?: number;
   slippagePct?: number;
   resolverVersion?: string;
+  /** Relógio explícito nos testes. Nunca consumir OHLC de candle ainda aberto. */
+  nowMs?: number;
+  priceInterval?: OHLCV["interval"];
+}
+
+export const CANDLE_INTERVAL_MS: Record<OHLCV["interval"], number> = {
+  "1h": 3600_000, "4h": 4 * 3600_000, "1d": 24 * 3600_000, "1w": 7 * 24 * 3600_000,
+};
+
+/** Providers armazenam abertura UTC. O fechamento ocorre no limite seguinte. */
+export function candleCloseMs(candle: OHLCV): number {
+  return Date.parse(candle.timestamp) + CANDLE_INTERVAL_MS[candle.interval];
+}
+
+function candleOpenAt(timestamp: number, interval: OHLCV["interval"]): number {
+  // Candle semanal da Binance começa na segunda-feira UTC.
+  const offset = interval === "1w" ? 4 * 24 * 3600_000 : 0;
+  const duration = CANDLE_INTERVAL_MS[interval];
+  return Math.floor((timestamp - offset) / duration) * duration + offset;
 }
 
 export interface ResolverResult {
@@ -176,12 +195,49 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
   const resolverVersion = input.resolverVersion ?? HISTORY_RESOLVER_VERSION;
 
   const { signal, series } = input;
+  const nowMs = input.nowMs ?? Date.now();
+  const interval = input.priceInterval ?? series[0]?.interval ?? "1h";
+  const duration = CANDLE_INTERVAL_MS[interval];
+  const generatedTs = Date.parse(signal.generated_at);
+  const expiresAtTs = Date.parse(signal.expires_at);
+  const expectedEntryOpen = candleOpenAt(generatedTs, interval);
+  const expiryClose = candleOpenAt(expiresAtTs - 1, interval) + duration;
+  const terminalAllowed = nowMs >= expiryClose;
+  // Uma lacuna desconhecida interrompe a trajetória. Antes do vencimento ela
+  // permanece recuperável, sem gravar outcome terminal nem inventar retorno.
+  const reportGap = (detail: string): ResolverResult => {
+    hasGap = true;
+    notes.push(detail);
+    if (terminalAllowed) {
+      outcomes.push(gapOutcome(signal.signal_id, detail, feePerSide, slippagePct, resolverVersion,
+        round4(1 - closedFraction), signal.expires_at));
+      closedFraction = 1;
+    }
+    return { outcomes, notes, entry_candle: entryCandle, closed_fraction: closedFraction, has_gap: true };
+  };
 
-  // Filtra e ordena (nunca confia na ordem de entrada)
-  const sorted = [...series].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  // Ordena, valida e deduplica OHLC idêntico. Conflictos de OHLC no mesmo
+  // horário são dados ambíguos, nunca escolher um preço conforme ordem de chegada.
+  const sorted: OHLCV[] = [];
+  const byTime = new Map<number, OHLCV>();
+  for (const c of series) {
+    const timestamp = Date.parse(c.timestamp);
+    if (!Number.isFinite(timestamp)) return reportGap("timestamp de candle inválido");
+    if (timestamp < expectedEntryOpen || timestamp + duration > nowMs || timestamp >= expiryClose) continue;
+    if (c.interval !== interval || timestamp !== candleOpenAt(timestamp, interval)
+      || ![c.open, c.high, c.low, c.close, c.volume].every(Number.isFinite)
+      || Math.min(c.open, c.high, c.low, c.close) <= 0 || c.volume < 0
+      || c.low > Math.min(c.open, c.close) || c.high < Math.max(c.open, c.close) || c.high < c.low) {
+      return reportGap(`OHLC inválido em ${c.timestamp}`);
+    }
+    const previous = byTime.get(timestamp);
+    if (previous && ["open", "high", "low", "close", "volume"].some(key =>
+      previous[key as "open"] !== c[key as "open"])) return reportGap(`candles conflitantes em ${c.timestamp}`);
+    if (!previous || c.source.localeCompare(previous.source) < 0) byTime.set(timestamp, c);
+  }
+  sorted.push(...[...byTime.values()].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)));
   if (sorted.length === 0) {
-    outcomes.push(gapOutcome(signal.signal_id, "series vazia", feePerSide, slippagePct, resolverVersion));
-    return { outcomes, notes: ["sem série de preços"], entry_candle: null, closed_fraction: 0, has_gap: true };
+    return reportGap("sem série de preços fechados");
   }
 
   // Requisitos: entry_price existir, direção acionável
@@ -192,11 +248,9 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
   // 1) Encontra o primeiro candle cujo FECHAMENTO ocorreu APÓS generated_at.
   //    Convenção: usamos close deste candle como preço executável prospectivo
   //    (entrada no fechamento do primeiro candle disponível após o sinal).
-  const generatedTs = new Date(signal.generated_at).getTime();
-  const entryIdx = sorted.findIndex(c => new Date(c.timestamp).getTime() > generatedTs);
+  const entryIdx = sorted.findIndex(c => Date.parse(c.timestamp) === expectedEntryOpen && candleCloseMs(c) > generatedTs);
   if (entryIdx < 0) {
-    outcomes.push(gapOutcome(signal.signal_id, "sem candle posterior ao generated_at (dado insuficiente)", feePerSide, slippagePct, resolverVersion));
-    return { outcomes, notes: ["nenhum candle executável após generated_at"], entry_candle: null, closed_fraction: 0, has_gap: true };
+    return reportGap("candle inicial ausente, entrada prospectiva desconhecida");
   }
   const entryCandleNonNil = sorted[entryIdx];
   if (!entryCandleNonNil) {
@@ -206,14 +260,14 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
   entryCandle = entryCandleNonNil;
 
   // Alvos e stop parciais em memória, conforme regra 5 (50%/50%):
-  // target_1 → 50%, target_2 → 50%. Se um alvo for nulo, o outro fecha 100%.
+  // target_1 sempre encerra 50%. Sem T2, restante segue para stop/expiry.
   const fractions: { kind: "t1" | "t2"; price: number; fraction: number }[] = [];
   if (signal.target_1 != null && isFinite(signal.target_1)) {
     if (signal.target_2 != null && isFinite(signal.target_2)) {
       fractions.push({ kind: "t1", price: signal.target_1, fraction: 0.5 });
       fractions.push({ kind: "t2", price: signal.target_2, fraction: 0.5 });
     } else {
-      fractions.push({ kind: "t1", price: signal.target_1, fraction: 1.0 });
+      fractions.push({ kind: "t1", price: signal.target_1, fraction: 0.5 });
     }
   } else if (signal.target_2 != null && isFinite(signal.target_2)) {
     fractions.push({ kind: "t2", price: signal.target_2, fraction: 1.0 });
@@ -223,7 +277,6 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
   fractions.sort((a, b) => signal.direction === "long" ? a.price - b.price : b.price - a.price);
 
   const stopPrice = signal.stop_loss ?? null;
-  const expiresAtTs = new Date(signal.expires_at).getTime();
 
   // 2) Itera candles A PARTIR do candle SEGUINTE ao de entrada.
   //    O stop/alvo NUNCA é checado no mesmo candle da entrada (evita look-ahead
@@ -245,7 +298,11 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
 
     const candle = sorted[i];
     if (!candle) continue;
-    const candleTs = new Date(candle.timestamp).getTime();
+    const candleTs = candleCloseMs(candle);
+    const previous = sorted[i - 1]!;
+    if (Date.parse(candle.timestamp) - Date.parse(previous.timestamp) !== duration) {
+      return reportGap(`candle ausente entre ${previous.timestamp} e ${candle.timestamp}`);
+    }
 
     // Checagem de GAP: salto esperado de intervalo (em ms) em relação ao candle anterior?
     // Aqui só flagamos se houver gap por ausência explícita. A detecção rigorosa
@@ -254,7 +311,10 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
 
     // VENCIMENTO (regra 11): se candleTs >= expiresAtTs e ainda não fechou tudo,
     // fecha o restante no close atual.
-    if (candleTs >= expiresAtTs && closedFraction < 1 - 1e-9) {
+    const stopHit = stopPrice != null && pendentes.has("stop") && (signal.direction === "long" ? candle.low <= stopPrice : candle.high >= stopPrice);
+    // Candle que cruza expiry não informa horário intrabar. Stop adverso tem
+    // prioridade conservadora. Sem stop, expira no primeiro close após expiry.
+    if (candleTs >= expiresAtTs && !stopHit && closedFraction < 1 - 1e-9) {
       const remaining = 1 - closedFraction;
       const { gross_pct, net_pct } = computeReturnPct({
         direction: signal.direction,
@@ -296,7 +356,8 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
       const hit = signal.direction === "long"
         ? candle.low <= stopPrice
         : candle.high >= stopPrice;
-      if (hit) events.push({ kind: "stop", price: stopPrice });
+      if (hit) events.push({ kind: "stop", price: signal.direction === "long"
+        ? Math.min(candle.open, stopPrice) : Math.max(candle.open, stopPrice) });
     }
     // TARGETS
     for (const f of fractions) {
@@ -304,7 +365,8 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
       const hit = signal.direction === "long"
         ? candle.high >= f.price
         : candle.low <= f.price;
-      if (hit) events.push({ kind: f.kind, price: f.price });
+      if (hit) events.push({ kind: f.kind, price: signal.direction === "long"
+        ? Math.max(candle.low, f.price) : Math.min(candle.high, f.price) });
     }
 
     if (events.length === 0) continue;
@@ -432,7 +494,7 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
   // Regra 11: não inventa preço. Marca como data_gap se não há candles até expirar.
   if (closedFraction < 1 - 1e-9) {
     const lastCandle = sorted[sorted.length - 1];
-    const expiredByClock = expiresAtTs <= Date.now();
+    const expiredByClock = terminalAllowed;
     if (!lastCandle) {
       hasGap = true;
       if (expiredByClock) {
@@ -441,7 +503,7 @@ export function resolveProspectively(input: ResolverInput): ResolverResult {
         closedFraction = 1;
       }
     } else {
-      const lastTs = new Date(lastCandle.timestamp).getTime();
+      const lastTs = candleCloseMs(lastCandle);
       if (lastTs < expiresAtTs) {
         hasGap = true;
         notes.push(`s?rie acaba antes do vencimento (last=${lastCandle.timestamp} < expires_at=${signal.expires_at})`);

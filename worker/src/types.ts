@@ -32,6 +32,10 @@ export interface PriceSnapshot {
 }
 
 export interface OHLCV {
+  /** Abertura UTC do intervalo (ex: 02:00:00Z abre o candle 02:00–03:00 em 1h).
+   *  NUNCA o horário de fechamento. Fechamento = abertura + duração do `interval`.
+   *  Ver `candleCloseMs`/`candleOpenAt` em lib/signal-history.ts. Candle ainda
+   *  aberto (fechamento > agora) jamais entra em cálculo prospectivo. */
   timestamp: string;
   open: number;
   high: number;

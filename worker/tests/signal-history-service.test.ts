@@ -481,7 +481,7 @@ describe("signal-history: integração (D1 mock)", () => {
     // Agora aparece a série posterior ao generated_at: sobe +1/h e atinge
     // target_1 (110) e target_2 (120) dentro das 72h.
     const base = new Date(gen).getTime();
-    for (let i = 1; i <= 80; i++) {
+    for (let i = 0; i <= 80; i++) {
       const ts = new Date(base + i * 3600_000).toISOString();
       const close = 100 + i;
       db.__prices.push({
@@ -490,7 +490,7 @@ describe("signal-history: integração (D1 mock)", () => {
       });
     }
 
-    const r2 = await resolvePendingSignals(db, { feePerSide: 0, slippagePct: 0 });
+    const r2 = await resolvePendingSignals(db, { feePerSide: 0, slippagePct: 0, nowMs: base + 81 * 3600_000 });
     expect(r2.processed).toBe(1);
     expect(r2.resolved).toBe(1);
     expect(db.__outcomes.length).toBe(2); // target_1 + target_2

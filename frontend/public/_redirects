@@ -19,3 +19,5 @@
 /painel/portfolio  /painel/shell  200
 /painel/trades     /painel/shell  200
 /painel/settings   /painel/shell  200
+/painel/track-record /painel/shell 200
+/painel/track-record/ /painel/shell 200

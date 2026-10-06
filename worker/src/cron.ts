@@ -12,6 +12,8 @@ const OHLCV_INTERVALS = ["1h", "4h", "1d"] as const;
 
 async function collectOHLCV(env: Env, interval: (typeof OHLCV_INTERVALS)[number]): Promise<number> {
   const bars = await fetchOHLCVWithFallback(interval, 2);
+  // F11 anti-look-ahead: providers podem incluir o candle em FORMAÇÃO por último;
+  // persiste o penúltimo = último FECHADO. Com 1 barra, usa a única disponível.
   const bar = bars.length > 1 ? bars[bars.length - 2] : bars[0];
   if (!bar) return 0;
   const ts = new Date(bar.timestamp).toISOString();
@@ -222,52 +224,12 @@ export async function handleScheduled(
   // Isso roda logo após a coleta de preços (já aconteceu acima) e ANTES do push
   // WhatsApp, para garantir que o sinal novo já esteja gravado quando enviado.
   try {
-    const { generateSignals } = await import("./lib/signal-engine");
-    const { enrichSignalForPersist, persistSignals, resolvePendingSignals } = await import("./signal-history-service");
-    const { fetchStoredOHLCV } = await import("./routes/signals");
-
-    const tfs: Array<"short" | "medium" | "long"> = ["short", "medium", "long"];
+    const { persistSignals, resolvePendingSignals } = await import("./signal-history-service");
+    const { collectProspectiveSignals } = await import("./prospective-signal-generator");
     const now = new Date().toISOString();
-    const allSignals: ReturnType<typeof enrichSignalForPersist>[] = [];
-    const rawSignals: import("./types").SignalDocument[] = [];
-    let portfolioCandle: import("./lib/aureus-portfolio").MarketCandle | null = null;
-    // Fear & Greed real do KV (coletado a cada 6h pelo proprio cron). Ausente -> null,
-    // e a estrategia fear_greed_contrarian e simplesmente omitida (nunca gera sinal com dado fabricado).
     const fgKv = (await env.KV.get("sentiment:fear-greed", "json")) as FearGreedData | null;
-
-    for (const tf of tfs) {
-      try {
-        const ohlcv = await fetchStoredOHLCV(env.DB, "1h", 400);
-        // fetchStoredOHLCV devolve ASC (mais antigo primeiro). Usar slice(-200) pega os
-        // 200 candles MAIS RECENTES; slice(0, 200) pegaria os mais antigos e o preco
-        // atual (ultimo elemento) ficaria no passado.
-        const recent = ohlcv.slice(-200);
-        const lastStoredCandle = recent[recent.length - 1];
-        const s = generateSignals({ candles: recent, fearGreed: fgKv, timeframe: tf });
-        rawSignals.push(...s);
-        if (lastStoredCandle) {
-          portfolioCandle = {
-            timestamp: lastStoredCandle.timestamp,
-            open: lastStoredCandle.open,
-            high: lastStoredCandle.high,
-            low: lastStoredCandle.low,
-            close: lastStoredCandle.close,
-          };
-        }
-        // Proveni?ncia: fonte/granularidade reais do candle entregue ao motor.
-        for (const doc of s) {
-          allSignals.push(enrichSignalForPersist({
-            signal: doc,
-            priceSource: lastStoredCandle?.source ?? "unknown",
-            priceInterval: lastStoredCandle?.interval ?? "1h",
-            now,
-          }));
-        }
-      } catch (innerErr) {
-        const msg = innerErr instanceof Error ? innerErr.message : "erro";
-        errors.push(`Histórico sinais tf=${tf}: ${msg}`);
-      }
-    }
+    const { rawSignals, allSignals, portfolioCandle, errors: signalErrors } = await collectProspectiveSignals(env.DB, fgKv, now);
+    errors.push(...signalErrors);
 
     const persistResult = await persistSignals(env.DB, allSignals);
     results.push(
@@ -287,10 +249,16 @@ export async function handleScheduled(
 
     // Portfolio Engine Aureus: uma unica posicao agregada em BTC, controlada pelo consenso.
     // Idempotencia: um ciclo por candle timestamp. Reexecucao do cron nao reaplica exposicao.
-    if (portfolioCandle && rawSignals.length > 0) {
+    if (portfolioCandle) {
       const { computeConsensus } = await import("./lib/consensus");
       const { persistAureusPortfolioCycle } = await import("./aureus-portfolio-service");
-      const consensus = computeConsensus(rawSignals);
+      const consensus = computeConsensus(rawSignals) ?? {
+        timeframe: "consensus" as const, market_date: now.slice(0, 10), generated_at: now,
+        verdict: "AGUARDAR" as const, conviction: 0, raw_conviction: 0, divergence_penalty: 0, agreement: 0,
+        weights: { short: 0.2, medium: 0.3, long: 0.5 },
+        per_timeframe: { short: { verdict: "AGUARDAR" as const, conviction: 0 }, medium: { verdict: "AGUARDAR" as const, conviction: 0 }, long: { verdict: "AGUARDAR" as const, conviction: 0 } },
+        rationale: "Sem sinais elegíveis. Carteira permanece marcada a mercado.", price: portfolioCandle.close,
+      };
       if (consensus) {
         const portfolioRun = await persistAureusPortfolioCycle({
           DB: env.DB,

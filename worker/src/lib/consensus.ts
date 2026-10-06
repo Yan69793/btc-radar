@@ -38,20 +38,21 @@ export interface ConsensusResult {
   price: number | null;
 }
 
-// Verdict numérico para combinável: COMPRAR=+1, REDUZIR=+0.5, AGUARDAR=0, VENDER=-1
+// REDUZIR diminui exposição. Não fornece escore nem convicção favorável a compra.
 function verdictScore(v: Verdict): number {
   switch (v) {
     case "COMPRAR": return 1;
-    case "REDUZIR": return 0.5;
+    case "REDUZIR": return -0.5;
     case "VENDER": return -1;
     default: return 0; // AGUARDAR
   }
 }
 
-function scoreToVerdict(score: number, conviction: number): Verdict {
-  if (score >= 0.45) return conviction >= ABSTAIN_THRESHOLD ? "COMPRAR" : "AGUARDAR";
-  if (score <= -0.45) return conviction >= ABSTAIN_THRESHOLD ? "VENDER" : "AGUARDAR";
-  if (score >= 0.15) return "REDUZIR"; // leve alta, parcial
+function scoreToVerdict(score: number, conviction: number, buyConfidence: number, sellSupport: number, reduceSupport: number): Verdict {
+  if (score >= 0.45) return buyConfidence >= ABSTAIN_THRESHOLD ? "COMPRAR" : "AGUARDAR";
+  if (score <= -0.15 && conviction >= ABSTAIN_THRESHOLD) {
+    return sellSupport >= reduceSupport && sellSupport > 0 ? "VENDER" : "REDUZIR";
+  }
   return "AGUARDAR";
 }
 
@@ -62,9 +63,11 @@ function dominantVerdict(signals: SignalDocument[]): { verdict: Verdict; convict
 
   const directional = signals.filter((s) => DIRECTIONAL.has(s.verdict));
   const pool = directional.length > 0 ? directional : signals;
-  return pool.reduce((best, s) =>
+  const priority: Record<Verdict, number> = { VENDER: 3, REDUZIR: 2, COMPRAR: 1, AGUARDAR: 0 };
+  const ordered = [...pool].sort((a, b) => b.conviction - a.conviction || priority[b.verdict] - priority[a.verdict] || a.signal_id.localeCompare(b.signal_id));
+  return ordered.reduce((best, s) =>
     s.conviction > best.conviction ? { verdict: s.verdict, conviction: s.conviction } : best,
-    { verdict: pool[0]!.verdict, conviction: pool[0]!.conviction }
+    { verdict: ordered[0]!.verdict, conviction: ordered[0]!.conviction }
   );
 }
 
@@ -104,7 +107,7 @@ export function computeConsensus(
   if (!anySignal) return null;
 
   // 3. Convicção ponderada bruta (0-10, escalada pela convicção de cada timeframe)
-  const rawConviction = contribs.reduce((acc, c) => acc + Math.abs(c.score) * c.weight, 0);
+  const rawConviction = contribs.reduce((acc, c) => acc + (c.score === 0 ? 0 : perTimeframe[c.tf].conviction) * c.weight, 0);
   const conviction = Math.min(10, rawConviction);
 
   // 4. Penalidade por divergência: quanto mais os timeframes discordam, maior a redução.
@@ -122,7 +125,10 @@ export function computeConsensus(
 
   // 5. Decide o veredito final pelo escore ponderado agregado, com abstain por convicção
   const finalScore = weightedScore;
-  const verdict = scoreToVerdict(finalScore, penalized);
+  const support = (v: Verdict) => (["short", "medium", "long"] as Timeframe[])
+    .reduce((sum, tf) => sum + (perTimeframe[tf].verdict === v ? perTimeframe[tf].conviction * TIMEFRAME_WEIGHTS[tf] : 0), 0);
+  const buyConfidence = support("COMPRAR") * (1 - divergencePenalty * 0.7);
+  const verdict = scoreToVerdict(finalScore, penalized, buyConfidence, support("VENDER"), support("REDUZIR"));
 
   const price = findLatestPrice(byTf);
   const rationale = buildRationale(perTimeframe, agreement, divergencePenalty, verdict);

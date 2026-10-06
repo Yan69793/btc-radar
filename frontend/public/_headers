@@ -84,6 +84,14 @@
   Content-Type: text/html; charset=utf-8
   Cache-Control: no-cache
 
+/painel/track-record
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
+/painel/track-record/
+  Content-Type: text/html; charset=utf-8
+  Cache-Control: no-cache
+
 ## Assets: hash no nome, cache longo. Sem Content-Type (o arquivo ja define).
 /assets/*
   Cache-Control: public, max-age=86400

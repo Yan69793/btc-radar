@@ -1,3 +1,4 @@
+import { SIGNAL_TIMEFRAMES } from "../lib/signal-timeframes";
 // BTC Radar — Rotas de sinais
 // GET /api/signals — gera sinais para todos os timeframes (paralelo, sem sleeps)
 // GET /api/signals/:strategy — filtra por estratégia (reusa cache v2)
@@ -13,11 +14,7 @@ import { kvGetJSON, deduped } from "../lib/kv-helpers";
 
 export const signalRoutes = new Hono<{ Bindings: Env }>();
 
-const TIMEFRAMES: { tf: Timeframe; interval: "1h" | "4h" | "1d"; limit: number }[] = [
-  { tf: "short", interval: "1h", limit: 72 },
-  { tf: "medium", interval: "4h", limit: 180 },
-  { tf: "long", interval: "1d", limit: 200 },
-];
+const TIMEFRAMES = SIGNAL_TIMEFRAMES;
 
 const CACHE_TTL = 600; // 10 min
 const CACHE_FRESH_MS = 300_000; // 5 min de aceite

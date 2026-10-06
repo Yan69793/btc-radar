@@ -35,7 +35,11 @@ describe("Aureus Portfolio Engine v1", () => {
     const r = evaluatePortfolioCycle(initialPortfolioState(), {
       timestamp: "2026-10-05T01:00:00.000Z", action: "COMPRAR", candle: candle(100), stopLoss: 80,
     });
-    expect(r.events.find(e => e.type === "BUY")!.grossValue).toBeCloseTo(5, 6);
+    // Sizing de risco 1% do NAV até o stop, com fee de entrada e slippage adverso:
+    // notional = 1 / (100,05×1,001 − 80×0,9995×0,999) × 100,05 ≈ 4,93586.
+    const grossValue = r.events.find(e => e.type === "BUY")!.grossValue;
+    expect(grossValue).toBeCloseTo(4.93586, 5);
+    expect(grossValue).toBeLessThan(25); // teto por entrada = 25% de 100
   });
 
   it("não abre short: VENDER sem posição apenas mantém caixa", () => {

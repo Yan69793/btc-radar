@@ -20,6 +20,7 @@ export function TrackRecord(){
   if(loading)return <div className="space-y-4 max-w-7xl mx-auto"><SkeletonCard/><SkeletonCard/></div>
   return <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
     <PageHeader eyebrow="Aureus" title="Track Record" meta={data?.available?`Ciclo ${data.metrics.cycle??'—'} · ${data.series.length} snapshots`:'Aguardando histórico operacional'}/>
+    <div className="card p-4 text-sm text-dark-text-secondary">Carteira simulada em USD, com NAV inicial de US$ 100. A política long-only mantém BTC comprado ou caixa, sem short ou alavancagem. Não representa patrimônio nem ordens executadas em conta real. Fees de 0,10% por lado e slippage adverso de 0,05% por execução entram no NAV. A métrica de fees soma as tarifas, enquanto o slippage já está incorporado nos preços simulados. Retorno e drawdown incluem a base inicial de US$ 100.</div>
     {error&&<div className="card p-4 border-red-500/20 text-red-400 text-sm">{error}</div>}
     {!error&&data&&!data.available&&<div className="card p-6 text-dark-text-secondary text-sm">{data.reason}</div>}
     {data?.available&&<>
@@ -27,7 +28,7 @@ export function TrackRecord(){
         <Metric label="NAV" value={usd(data.metrics.nav)}/><Metric label="Retorno acumulado" value={pct(data.metrics.cumulative_return_pct)}/>
         <Metric label="Max drawdown" value={pct(data.metrics.max_drawdown_pct)}/><Metric label="Exposição BTC" value={pct(data.metrics.exposure_pct)}/>
         <Metric label="PnL realizado" value={usd(data.metrics.realized_pnl)}/><Metric label="PnL não realizado" value={usd(data.metrics.unrealized_pnl)}/>
-        <Metric label="Custos" value={usd(data.metrics.total_fees)}/><Metric label="Ciclo" value={String(data.metrics.cycle??'—')}/>
+        <Metric label="Fees acumuladas" value={usd(data.metrics.total_fees)}/><Metric label="Ciclo" value={String(data.metrics.cycle??'—')}/>
       </div>
       <div className="card p-5"><div className="mb-4 text-sm font-semibold text-dark-text-primary">Curva de NAV</div><div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%"><LineChart data={data.series}><XAxis dataKey="timestamp" tickFormatter={v=>new Date(v).toLocaleDateString('pt-BR')}/><YAxis domain={['auto','auto']}/><Tooltip labelFormatter={v=>fmtDateTime(String(v))}/><Line type="monotone" dataKey="nav" stroke="currentColor" dot={false} strokeWidth={2}/></LineChart></ResponsiveContainer>

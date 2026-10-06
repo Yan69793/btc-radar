@@ -7,6 +7,9 @@ import type { D1Database } from "@cloudflare/workers-types";
 import {
   HISTORY_ENGINE_VERSION,
   HISTORY_STRATEGY_VERSION,
+  HISTORY_RESOLVER_VERSION,
+  CANDLE_INTERVAL_MS,
+  candleCloseMs,
   buildSignalId,
   computeExpiresAt,
   resolveProspectively,
@@ -181,6 +184,7 @@ export async function resolvePendingSignals(DB: D1Database, opts?: {
   feePerSide?: number;
   slippagePct?: number;
   resolverVersion?: string;
+  nowMs?: number;
 }): Promise<{
   resolved: number;
   with_gap: number;
@@ -200,8 +204,19 @@ export async function resolvePendingSignals(DB: D1Database, opts?: {
     try {
       // Busca série de preços: do horário do sinal até expires_at (mais 1 candle de margem).
       const interval = (s.price_interval as OHLCV["interval"]) || "1h";
-      const startIso = s.generated_at;
-      const endIso = s.expires_at ?? s.generated_at;
+      const duration = CANDLE_INTERVAL_MS[interval];
+      const nowMs = opts?.nowMs ?? Date.now();
+      const startIso = new Date(Date.parse(s.generated_at) - duration).toISOString();
+      const endIso = new Date(Date.parse(s.expires_at ?? s.generated_at) + duration).toISOString();
+
+      // Não misturar convenções temporais em sinais parcialmente resolvidos.
+      // Outcomes completos são excluídos pela query de pendentes e ficam intactos.
+      const previous = await DB.prepare("SELECT * FROM signal_outcomes WHERE signal_id = ? ORDER BY resolved_at ASC")
+        .bind(s.signal_id).all<SignalOutcomeRecord>();
+      if (!previous.success || previous.results?.some(o => o.resolved_by_version !== (opts?.resolverVersion ?? HISTORY_RESOLVER_VERSION))) {
+          errors.push(`sinal parcial de metodologia anterior exige reconciliação explícita signal=${s.signal_id}`);
+          continue;
+      }
 
       const seriesRows = await DB.prepare(getPriceSeriesInRangeQuery())
         .bind(interval, startIso, endIso)
@@ -218,11 +233,11 @@ export async function resolvePendingSignals(DB: D1Database, opts?: {
       // query de pendentes excluiria o sinal para sempre (falso gap terminal).
       // Só resolvemos quando existe ao menos um candle ESTRITAMENTE posterior a
       // generated_at. Se ainda não existe E o sinal não venceu, permanece pendente.
-      const series = seriesRows.results ?? [];
+      const series = (seriesRows.results ?? []).filter(c => candleCloseMs(c) <= nowMs);
       const generatedTs = new Date(s.generated_at).getTime();
-      const hasCandleAfterGenerated = series.some(c => new Date(c.timestamp).getTime() > generatedTs);
+      const hasCandleAfterGenerated = series.some(c => candleCloseMs(c) > generatedTs);
       const expiresTs = s.expires_at ? new Date(s.expires_at).getTime() : Number.NEGATIVE_INFINITY;
-      if (!hasCandleAfterGenerated && expiresTs > Date.now()) {
+      if (!hasCandleAfterGenerated && expiresTs > nowMs) {
         continue; // sem candle executável e sem vencimento: segue pendente, sem outcome
       }
 
@@ -245,8 +260,16 @@ export async function resolvePendingSignals(DB: D1Database, opts?: {
         feePerSide: opts?.feePerSide,
         slippagePct: opts?.slippagePct,
         resolverVersion: opts?.resolverVersion,
+        priceInterval: interval,
+        nowMs,
       });
 
+      if (previous.results?.some(old => !res.outcomes.some(candidate =>
+        candidate.status === old.status && candidate.resolved_at === old.resolved_at
+        && candidate.position_fraction === old.position_fraction && candidate.resolved_price === old.resolved_price))) {
+        errors.push(`trajetória diverge de outcome imutável signal=${s.signal_id}`);
+        continue;
+      }
       for (const outcome of res.outcomes) {
         await writeSignalOutcome(DB, outcome);
       }

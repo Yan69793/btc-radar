@@ -1,6 +1,16 @@
 import type { Verdict } from "../types";
 
-export const AUREUS_PORTFOLIO_VERSION = "1.0.0";
+// DECISÃO DE POLÍTICA F10 (risco econômico vs risco de preço) — EXPLÍCITA, PENDENTE DE CONFIRMAÇÃO DO PRODUTO.
+// Nenhuma definição canônica de "risco de 1%" foi encontrada em documentação, planos ou código
+// (o motivo original dizia apenas "risco 1% NAV", ambíguo). O motor implementa a alternativa B:
+//   "risco de 1%" = perda econômica máxima incluindo fee + slippage (sem gap):
+//     q * [ entryExec*(1+fee) - stop*(1-slipp)*(1-fee) ] <= 0.01 * NAV
+// Alternativa A (NÃO implementada): risco só de preço, notional = 0.01*NAV / ((entry-stop)/entry),
+//   que no caso entry=100/stop=95/NAV=100 dimensiona notional=20 e gera perda econômica de ~1.058 (>1% NAV).
+// Impacto matemático de B: notional menor que A pelo fator de custos (ex: ~18.90 em vez de 20 no caso acima).
+// Reversão para A = trocar lossPerUnit por (marketPrice - stop)/marketPrice em openLong (1 linha + testes).
+
+export const AUREUS_PORTFOLIO_VERSION = "1.1.0";
 
 export interface PortfolioPolicy {
   initialNav: number;
@@ -26,6 +36,8 @@ export interface LongPosition {
   quantity: number;
   originalQuantity: number;
   entryExecPrice: number;
+  // Ausente em estados legados. Não estimar custos históricos sem evidência.
+  entryFeeRemaining?: number;
   stopLoss: number;
   target1: number | null;
   target2: number | null;
@@ -43,6 +55,9 @@ export interface PortfolioState {
 
 export interface MarketCandle {
   timestamp: string;
+  /** F11: fechamento explícito do candle executado (abertura + duração).
+   *  Eventos protetivos usam closedAt; sem ele, usa-se o timestamp do ciclo. */
+  closedAt?: string;
   open: number;
   high: number;
   low: number;
@@ -110,7 +125,7 @@ function cloneState(state: PortfolioState): PortfolioState {
 export function markToMarket(state: PortfolioState, price: number, timestamp: string): PortfolioSnapshot {
   const positionValue = state.position ? state.position.quantity * price : 0;
   const nav = state.cash + positionValue;
-  const costBasis = state.position ? state.position.quantity * state.position.entryExecPrice : 0;
+  const costBasis = state.position ? state.position.quantity * state.position.entryExecPrice + (state.position.entryFeeRemaining ?? 0) : 0;
   const unrealizedPnl = state.position ? positionValue - costBasis : 0;
   return {
     timestamp,
@@ -141,11 +156,15 @@ function sellQuantity(
   const grossValue = q * executionPrice;
   const fee = grossValue * policy.feePerSide;
   const netProceeds = grossValue - fee;
-  const basis = q * state.position.entryExecPrice;
+  const allocatedEntryFee = (state.position.entryFeeRemaining ?? 0) * q / state.position.quantity;
+  const basis = q * state.position.entryExecPrice + allocatedEntryFee;
+  if (state.position.entryFeeRemaining !== undefined) {
+    state.position.entryFeeRemaining -= allocatedEntryFee;
+  }
   state.cash += netProceeds;
   state.realizedPnl += netProceeds - basis;
   state.totalFees += fee;
-  state.position.quantity = round(state.position.quantity - q);
+  state.position.quantity -= q;
   if (state.position.quantity <= 1e-12) state.position = null;
   return {
     type, timestamp, quantity: round(q), marketPrice, executionPrice: round(executionPrice),
@@ -157,9 +176,11 @@ function processProtectiveLevels(
   state: PortfolioState,
   candle: MarketCandle,
   policy: PortfolioPolicy,
+  fallbackTimestamp: string,
 ): ExecutionEvent[] {
   const events: ExecutionEvent[] = [];
   const p = state.position;
+  const executionTimestamp = candle.closedAt ?? fallbackTimestamp;
   if (!p) return events;
 
   const stopHit = candle.low <= p.stopLoss;
@@ -168,7 +189,7 @@ function processProtectiveLevels(
 
   if (stopHit) {
     const ev = sellQuantity(
-      state, p.quantity, p.stopLoss, candle.timestamp, "STOP",
+      state, p.quantity, Math.min(candle.open, p.stopLoss), executionTimestamp, "STOP",
       t1Hit || t2Hit ? "stop-first em candle ambíguo" : "stop_loss", policy,
     );
     if (ev) events.push(ev);
@@ -178,7 +199,7 @@ function processProtectiveLevels(
   if (t1Hit && state.position) {
     const q = Math.min(state.position.originalQuantity * 0.5, state.position.quantity);
     const ev = sellQuantity(
-      state, q, p.target1!, candle.timestamp, "TARGET_1",
+      state, q, Math.max(candle.low, p.target1!), executionTimestamp, "TARGET_1",
       "T1 realiza 50% da quantidade original", policy,
     );
     if (ev) events.push(ev);
@@ -187,7 +208,7 @@ function processProtectiveLevels(
 
   if (t2Hit && state.position) {
     const ev = sellQuantity(
-      state, state.position.quantity, p.target2!, candle.timestamp, "TARGET_2",
+      state, state.position.quantity, Math.max(candle.low, p.target2!), executionTimestamp, "TARGET_2",
       "T2 encerra o saldo remanescente", policy,
     );
     if (ev) events.push(ev);
@@ -213,9 +234,11 @@ function openLong(state: PortfolioState, input: CycleInput, policy: PortfolioPol
   }
 
   const pre = markToMarket(state, marketPrice, input.timestamp);
-  const stopDistancePct = (marketPrice - input.stopLoss) / marketPrice;
+  const executionPrice = marketPrice * (1 + policy.slippagePct);
+  const stopNetPrice = input.stopLoss * (1 - policy.slippagePct) * (1 - policy.feePerSide);
+  const lossPerUnit = executionPrice * (1 + policy.feePerSide) - stopNetPrice;
   const riskBudget = pre.nav * policy.riskPerTrade;
-  const riskSizedNotional = riskBudget / stopDistancePct;
+  const riskSizedNotional = riskBudget / lossPerUnit * executionPrice;
   const entryCap = pre.nav * policy.maxNewEntryNotional;
   const exposureCap = pre.nav * policy.maxPortfolioExposure;
   const maxByCashWithCosts = state.cash / (1 + policy.feePerSide) / (1 + policy.slippagePct);
@@ -229,14 +252,13 @@ function openLong(state: PortfolioState, input: CycleInput, policy: PortfolioPol
     };
   }
 
-  const executionPrice = marketPrice * (1 + policy.slippagePct);
   const quantity = notional / executionPrice;
   const grossValue = quantity * executionPrice;
   const fee = grossValue * policy.feePerSide;
   state.cash -= grossValue + fee;
   state.totalFees += fee;
   state.position = {
-    quantity, originalQuantity: quantity, entryExecPrice: executionPrice,
+    quantity, originalQuantity: quantity, entryExecPrice: executionPrice, entryFeeRemaining: fee,
     stopLoss: input.stopLoss,
     target1: finitePositive(input.target1) ? input.target1 : null,
     target2: finitePositive(input.target2) ? input.target2 : null,
@@ -247,7 +269,7 @@ function openLong(state: PortfolioState, input: CycleInput, policy: PortfolioPol
   return {
     type: "BUY", timestamp: input.timestamp, quantity: round(quantity), marketPrice,
     executionPrice: round(executionPrice), grossValue: round(grossValue), fee: round(fee),
-    reason: "sizing=min(risco 1% NAV, 25% NAV por entrada, exposição 100%, caixa)",
+    reason: "sizing=min(risco líquido 1% NAV no stop sem gap, 25% NAV por entrada, exposição 100%, caixa)",
   };
 }
 
@@ -256,15 +278,16 @@ export function evaluatePortfolioCycle(
   input: CycleInput,
   policy: PortfolioPolicy = DEFAULT_AUREUS_POLICY,
 ): CycleResult {
-  const state = cloneState(previous);
-  state.cycle += 1;
-  const events: ExecutionEvent[] = [];
-
-  if (!finitePositive(input.candle.close) || !finitePositive(input.candle.high) || !finitePositive(input.candle.low)) {
+  const { open, high, low, close } = input.candle;
+  if (![open, high, low, close].every(finitePositive) || low > high ||
+      open < low || open > high || close < low || close > high) {
     throw new Error("candle inválido");
   }
 
-  events.push(...processProtectiveLevels(state, input.candle, policy));
+  const state = cloneState(previous);
+  state.cycle += 1;
+  const events: ExecutionEvent[] = [];
+  events.push(...processProtectiveLevels(state, input.candle, policy, input.timestamp));
 
   if (input.action === "VENDER") {
     if (state.position) {

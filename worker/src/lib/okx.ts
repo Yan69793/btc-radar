@@ -52,6 +52,9 @@ export async function fetchOKXOHLCV(
 
   // OKX returns candles in reverse chronological order (newest first)
   // Each entry: [ts, open, high, low, close, vol, volCcy, volCcyQuote, confirm]
+  // F11: ts = ABERTURA UTC do candle (convenção idêntica à Binance). A primeira
+  // linha pode ser o candle em FORMAÇÃO (confirm=0); o cron persiste bars[len-2]
+  // (último FECHADO) e o resolvedor exclui candle com fechamento > nowMs.
   const sorted = [...json.data].reverse();
 
   return sorted.map((k) => ({

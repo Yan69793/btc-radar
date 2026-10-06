@@ -9,6 +9,8 @@ export async function fetchBinanceOHLCV(interval:"1h"|"4h"|"1d"|"1w"="1d",limit=
   if(!res.ok) throw new Error("Binance OHLCV error: "+res.status+" "+res.statusText);
   const json=await res.json() as Row[];
   if(!Array.isArray(json)||!json.length) throw new Error("Binance OHLCV payload ausente");
+  // F11: k[0] = openTime (ABERTURA UTC do candle). timestamp carrega a abertura;
+  // fechamento = abertura + duração do intervalo. Ex: 02:00:00Z abre 02:00–03:00 em 1h.
   return json.map(k=>({timestamp:new Date(k[0]).toISOString(),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),interval,source:"Binance"}));
 }
 
