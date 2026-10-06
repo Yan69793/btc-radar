@@ -6,7 +6,7 @@ import { getToken } from '../lib/session'
 import { PageHeader } from '../components/PageHeader'
 
 export function Settings() {
-  // â”€â”€â”€ WhatsApp subscription state â”€â”€â”€
+  // ─── WhatsApp subscription state ───
   const [phone, setPhone] = useState('')
   const [subscriber, setSubscriber] = useState<WhatsAppSubscriber | null>(null)
   const [loading, setLoading] = useState(true)
@@ -52,7 +52,7 @@ export function Settings() {
     fetchSubscriber()
   }, [fetchSubscriber])
 
-  // â”€â”€â”€ Subscribe / Update â”€â”€â”€
+  // ─── Subscribe / Update ───
 
   async function unlockAdmin(e: React.FormEvent) {
     e.preventDefault(); setAdminError(null)
@@ -98,7 +98,7 @@ export function Settings() {
     }
   }
 
-  // â”€â”€â”€ Unsubscribe â”€â”€â”€
+  // ─── Unsubscribe ───
   async function handleUnsubscribe() {
     if (!subscriber) return
     setSaving(true)
@@ -117,7 +117,7 @@ export function Settings() {
     }
   }
 
-  // â”€â”€â”€ Send test â”€â”€â”€
+  // ─── Send test ───
   async function handleTest() {
     if (!subscriber) return
     setTestSending(true)
@@ -135,7 +135,7 @@ export function Settings() {
     }
   }
 
-  // â”€â”€â”€ Update preferences â”€â”€â”€
+  // ─── Update preferences ───
   async function handlePrefToggle(key: 'signals' | 'alerts' | 'briefing') {
     const updated = { ...prefs, [key]: !prefs[key] }
     setPrefs(updated)
@@ -151,8 +151,8 @@ export function Settings() {
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
       <PageHeader
         eyebrow="Conta"
-        title="ConfiguraÃ§Ãµes"
-        meta="PreferÃªncias de notificaÃ§Ã£o e canais"
+        title="Configurações"
+        meta="Preferências de notificação e canais"
         context="SETTINGS"
       />
 
@@ -164,6 +164,19 @@ export function Settings() {
         <div className="card p-4 border-accent-green/20 text-accent-green text-sm">{success}</div>
       )}
 
+      {/* Track Record */}
+      <div className="card p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-dark-text-primary font-semibold text-base">Track Record</h2>
+          <p className="text-dark-text-dim text-xs mt-1">Hist&oacute;rico de desempenho da estrat&eacute;gia simulada, ciclos, eventos e benchmark.</p>
+        </div>
+        <a
+          href="/painel/track-record"
+          className="inline-flex items-center justify-center px-4 py-2.5 border border-accent-blue/40 text-accent-blue rounded-lg text-sm font-medium hover:bg-accent-blue/10 transition-colors"
+        >
+          Abrir Track Record
+        </a>
+      </div>
       {/* WhatsApp Section */}
       <div className="card p-6 space-y-5">
         <div className="flex items-center gap-3">
@@ -268,7 +281,7 @@ export function Settings() {
             <form onSubmit={handleSubscribe} className="space-y-4">
               <div>
                 <label htmlFor="wa-phone" className="block text-dark-text-muted text-xs font-medium mb-1.5">
-                  Numero do WhatsApp
+                  N&uacute;mero do WhatsApp
                 </label>
                 <input
                   id="wa-phone"
@@ -279,13 +292,13 @@ export function Settings() {
                   className="w-full px-3 py-2.5 bg-dark-bg-hover border border-dark-bg-border rounded-lg text-dark-text-primary text-sm placeholder-dark-text-dim/50 focus:outline-none focus:border-accent-blue transition-colors"
                 />
                 <div className="text-dark-text-dim text-[11px] mt-1">
-                  Formato: DDI + DDD + numero. Ex: 5511999999999
+                  Formato: DDI + DDD + n&uacute;mero. Ex: 5511999999999
                 </div>
               </div>
 
               {/* Prefs on subscribe */}
               <div className="space-y-1.5">
-                <div className="text-dark-text-muted text-xs font-medium">O que voce quer receber?</div>
+                <div className="text-dark-text-muted text-xs font-medium">O que voc&ecirc; quer receber?</div>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: 'signals' as const, label: 'Sinais' },
@@ -327,11 +340,11 @@ export function Settings() {
 
 
       <div className="card p-6 space-y-4">
-        <div><h2 className="text-dark-text-primary font-semibold text-base">Administracao</h2><p className="text-dark-text-dim text-xs mt-1">Usuarios cadastrados e atividade de acesso. Area exclusiva do administrador.</p></div>
+        <div><h2 className="text-dark-text-primary font-semibold text-base">Administra&ccedil;&atilde;o</h2><p className="text-dark-text-dim text-xs mt-1">Usu&aacute;rios cadastrados e atividade de acesso. &Aacute;rea exclusiva do administrador.</p></div>
         {!adminUsers ? <form onSubmit={unlockAdmin} className="flex flex-col sm:flex-row gap-2"><input type="password" autoComplete="current-password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} placeholder="Senha administrativa" className="flex-1 px-3 py-2.5 bg-dark-bg-hover border border-dark-bg-border rounded-lg text-dark-text-primary text-sm"/><button type="submit" className="px-4 py-2.5 bg-accent-blue text-white rounded-lg text-sm font-medium">Desbloquear</button></form> : <>
           <div className="grid grid-cols-3 gap-2"><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Cadastrados</span><strong className="text-dark-text-primary text-xl">{adminUsers.length}</strong></div><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Ativos 30d</span><strong className="text-dark-text-primary text-xl">{adminUsers.filter(u=>u.last_login_at && Date.now()-new Date(u.last_login_at).getTime()<2592000000).length}</strong></div><div className="bg-dark-bg-hover/50 rounded-lg p-3"><span className="text-dark-text-muted text-xs block">Retornaram</span><strong className="text-dark-text-primary text-xl">{adminUsers.filter(u=>u.login_count>1).length}</strong></div></div>
           <div className="flex gap-2"><input value={adminQuery} onChange={e=>setAdminQuery(e.target.value)} placeholder="Buscar nome ou email" className="flex-1 px-3 py-2 bg-dark-bg-hover border border-dark-bg-border rounded-lg text-dark-text-primary text-xs"/><button onClick={exportAdminCsv} type="button" className="px-3 py-2 border border-accent-blue/40 text-accent-blue rounded-lg text-xs">Exportar CSV</button></div>
-          <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-dark-text-muted border-b border-dark-bg-border"><th className="py-2 pr-3">Nome</th><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">Cadastro</th><th className="py-2 pr-3">Ultimo acesso</th><th className="py-2 text-right">Logins</th></tr></thead><tbody>{adminUsers.filter(u=>!adminQuery.trim() || (u.name+' '+u.email).toLowerCase().includes(adminQuery.toLowerCase())).map(u=><tr key={u.id} className="border-b border-dark-bg-border/50 text-dark-text-primary"><td className="py-2.5 pr-3">{u.name}</td><td className="py-2.5 pr-3"><a className="text-accent-blue" href={'mailto:'+u.email}>{u.email}</a></td><td className="py-2.5 pr-3 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="py-2.5 pr-3 whitespace-nowrap">{u.last_login_at?new Date(u.last_login_at).toLocaleString('pt-BR'):'-'}</td><td className="py-2.5 text-right">{u.login_count}</td></tr>)}</tbody></table></div>
+          <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-dark-text-muted border-b border-dark-bg-border"><th className="py-2 pr-3">Nome</th><th className="py-2 pr-3">Email</th><th className="py-2 pr-3">Cadastro</th><th className="py-2 pr-3">&Uacute;ltimo acesso</th><th className="py-2 text-right">Logins</th></tr></thead><tbody>{adminUsers.filter(u=>!adminQuery.trim() || (u.name+' '+u.email).toLowerCase().includes(adminQuery.toLowerCase())).map(u=><tr key={u.id} className="border-b border-dark-bg-border/50 text-dark-text-primary"><td className="py-2.5 pr-3">{u.name}</td><td className="py-2.5 pr-3"><a className="text-accent-blue" href={'mailto:'+u.email}>{u.email}</a></td><td className="py-2.5 pr-3 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="py-2.5 pr-3 whitespace-nowrap">{u.last_login_at?new Date(u.last_login_at).toLocaleString('pt-BR'):'-'}</td><td className="py-2.5 text-right">{u.login_count}</td></tr>)}</tbody></table></div>
         </>}
         {adminError && <div className="text-red-400 text-xs">{adminError}</div>}
       </div>
@@ -351,8 +364,8 @@ export function Settings() {
               Como funciona
             </div>
             <div className="text-dark-text-dim space-y-1">
-              <p>Os sinais sao gerados a cada hora com base em 6 estrategias tecnicas em 3 horizontes.</p>
-              <p>Voce recebe apenas sinais de alta conviccao (COMPRAR/VENDER ou conviccao 6+/10) para evitar ruido.</p>
+              <p>Os sinais s&atilde;o gerados a cada hora com base em 6 estrat&eacute;gias t&eacute;cnicas em 3 horizontes.</p>
+              <p>Voc&ecirc; recebe apenas sinais de alta convic&ccedil;&atilde;o (COMPRAR/VENDER ou convic&ccedil;&atilde;o 6+/10) para evitar ru&iacute;do.</p>
               <p>Responda *SINAIS* no WhatsApp a qualquer momento para receber os sinais atuais.</p>
             </div>
           </div>
